@@ -67,6 +67,7 @@ def main(argv: list[str] | None = None) -> None:
     ph = sub.add_parser("phone", help="phone link (and password with --show-password)")
     ph.add_argument("--show-password", action="store_true")
     ph.add_argument("--new-password", action="store_true", help="rotate the password and sign every phone out")
+    ph.add_argument("--set-password", action="store_true", help="choose your own password (asked privately)")
     sub.add_parser("phone-serve")
     sub.add_parser("tunnel")
     lv = sub.add_parser("live")
@@ -129,6 +130,14 @@ def main(argv: list[str] | None = None) -> None:
         print("\n".join(done) or "nothing to do")
     elif a.cmd == "phone":
         from . import phone
+        if a.set_password:
+            import getpass
+            first, second = getpass.getpass("new phone password: "), getpass.getpass("again: ")
+            if first != second:
+                sys.exit("passwords did not match")
+            phone.set_password(first)
+            print("password set; every phone has been signed out")
+            return
         pw = phone.password(rotate=a.new_password)
         print(f"phone link: {phone.current_url() or '(tunnel not running: council install-service --phone)'}")
         print(f"password:   {pw}" if a.show_password or a.new_password else

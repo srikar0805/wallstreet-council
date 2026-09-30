@@ -59,6 +59,14 @@ def password(rotate: bool = False) -> str:
     return pw
 
 
+def set_password(value: str) -> None:
+    """Use the owner's own password; signs every phone out."""
+    if len(value) < 8:
+        raise ValueError("use at least 8 characters")
+    _kc_set(PW_SERVICE, value)
+    _kc_set(SECRET_SERVICE, secrets.token_hex(32))
+
+
 def _secret() -> bytes:
     s = _kc_get(SECRET_SERVICE)
     if not s:
