@@ -3,6 +3,8 @@ and keep going when no terminal is open.
 
     council install-service [--publish]   write and load ~/Library/LaunchAgents/com.wallstreet-council.*.plist
     council uninstall-service             unload and remove them
+    council stop-live / start-live        pause or resume just the floor (the monitor keeps running);
+                                          a paused floor comes back at the next login
 """
 from __future__ import annotations
 
@@ -59,3 +61,16 @@ def uninstall() -> list[str]:
             path.unlink()
             done.append(str(path))
     return done
+
+
+def live_installed() -> bool:
+    return (AGENTS / f"{LABELS['live']}.plist").exists()
+
+
+def pause_live() -> None:
+    """Unload the floor agent so launchd stops restarting it. The plist stays, so it resumes at next login."""
+    subprocess.run(["launchctl", "unload", str(AGENTS / f"{LABELS['live']}.plist")], capture_output=True)
+
+
+def resume_live() -> None:
+    subprocess.run(["launchctl", "load", str(AGENTS / f"{LABELS['live']}.plist")], capture_output=True, check=True)

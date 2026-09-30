@@ -73,6 +73,7 @@ def main(argv: list[str] | None = None) -> None:
     lv.add_argument("--publish", action="store_true", help="push a read-only snapshot to GitHub Pages")
     lv.add_argument("--speakers", type=int, default=3, help="seats per floor round")
     sub.add_parser("stop-live")
+    sub.add_parser("start-live")
     sub.add_parser("budget")
     sub.add_parser("monitor")
     sub.add_parser("mcp")
@@ -134,7 +135,8 @@ def main(argv: list[str] | None = None) -> None:
             sys.exit(f"The floor is already running (pid {pid})" + (" as a background service" if svc else "") + ".\n"
                      "  watch:  http://127.0.0.1:8765   or   tail -f ~/.wallstreet-council/live.log\n"
                      "  talk:   uv run council say \"your message\"\n"
-                     + ("  stop:   uv run council uninstall-service" if svc else "  stop:   uv run council stop-live"))
+                     + "  pause:  uv run council stop-live"
+                     + ("   (remove for good: uv run council uninstall-service)" if svc else ""))
         floor.HOME.mkdir(parents=True, exist_ok=True)
         floor.PID_FILE.write_text(str(os.getpid()))
         atexit.register(lambda: floor.PID_FILE.unlink(missing_ok=True))
@@ -142,8 +144,20 @@ def main(argv: list[str] | None = None) -> None:
         floor.Floor(a.interval_open, a.interval_closed, a.schedule or floor.DEFAULT_SCHEDULE, a.budget, a.speakers,
                     publish=a.publish or None, goal=a.goal).run()
     elif a.cmd == "stop-live":
-        from . import floor
-        print("stopping" if floor.stop_detached() else "not running")
+        from . import floor, service
+        if service.live_installed():
+            service.pause_live()  # launchd sends SIGTERM and stops restarting it
+            print("floor paused (background service unloaded; the monitor keeps running).\n"
+                  "  resume: uv run council start-live   (it also resumes at your next login)")
+        else:
+            print("stopping" if floor.stop_detached() else "not running")
+    elif a.cmd == "start-live":
+        from . import floor, service
+        if service.live_installed():
+            service.resume_live()
+            print("floor resumed as a background service")
+        else:
+            print(f"started floor, pid {floor.start_detached()}")
     elif a.cmd == "budget":
         from . import llm, store
         for prov in ("codex", "claude"):

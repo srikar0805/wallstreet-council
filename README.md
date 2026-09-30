@@ -121,7 +121,8 @@ Prices and history come from Yahoo Finance through `yfinance`; headlines from Go
 ```bash
 uv run council live            # foreground; Ctrl-C to stop
 uv run council budget          # ChatGPT and Claude calls used and left today
-uv run council stop-live       # stop a detached floor (started from the MCP tool)
+uv run council stop-live       # pause the floor (service or detached); the monitor keeps running
+uv run council start-live      # resume it (a paused service also resumes at next login)
 ```
 
 ## Install
