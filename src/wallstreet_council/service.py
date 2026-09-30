@@ -20,6 +20,7 @@ AGENTS = Path.home() / "Library" / "LaunchAgents"
 LABELS = {"live": "com.wallstreet-council.live", "monitor": "com.wallstreet-council.monitor",
           "phone": "com.wallstreet-council.phone", "tunnel": "com.wallstreet-council.tunnel"}
 PROJECT = Path(__file__).resolve().parents[2]
+VENV_COUNCIL = PROJECT / ".venv" / "bin" / "council"
 
 
 def _uv() -> str:
@@ -28,7 +29,10 @@ def _uv() -> str:
 
 def _plist(label: str, args: list[str], env: dict[str, str]) -> dict:
     return {
-        "Label": label, "ProgramArguments": [_uv(), "run", "--project", str(PROJECT), "council", *args],
+        # Run the venv's entry point directly: through `uv run`, launchd's stop signal reached uv but not the
+        # Python child, which then outlived `uninstall-service`.
+        "Label": label, "ProgramArguments": ([str(VENV_COUNCIL)] if VENV_COUNCIL.exists()
+                                             else [_uv(), "run", "--project", str(PROJECT), "council"]) + args,
         "WorkingDirectory": str(PROJECT), "RunAtLoad": True, "KeepAlive": True, "ThrottleInterval": 60,
         "StandardOutPath": str(HOME / f"{label.split('.')[-1]}.log"),
         "StandardErrorPath": str(HOME / f"{label.split('.')[-1]}.log"),
