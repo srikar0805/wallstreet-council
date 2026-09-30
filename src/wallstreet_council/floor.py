@@ -44,6 +44,8 @@ Indian markets and IPOs. The floor is a running conversation between AI analysts
 - Keep the client's GOAL in view: turning a small stake into ten times as much. Debate every route (compounding,
   single stocks, IPO applications and what happens if allotted, intraday, options, penny stocks) with honest odds.
   Count broker charges, depository charges, transaction taxes and capital-gains tax (COSTS); name the account type.
+- Share price is no barrier in the US: zero-commission US brokers sell fractional shares, so $10 buys a slice of
+  any stock. NSE and BSE trade whole shares only, so a Rs ~960 stake can only buy stocks priced below that.
 - Each round has a SPOTLIGHT stock with its full history. Say something specific about it when it is your turn.
 - Otherwise react to the latest tape, IPO figures and headlines, and to the previous speaker BY NAME: agree,
   push back, or add.
