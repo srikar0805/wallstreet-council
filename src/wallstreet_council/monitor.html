@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wall Street Council</title>
+<style>
+:root{
+  --bg:#0b0e14;--panel:#121722;--panel2:#171d2b;--line:#242c3d;--text:#e6e9ef;--muted:#8a93a6;
+  --green:#3ddc97;--red:#ff6b6b;--gold:#f5c451;--blue:#6aa9ff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:17px;margin:0;letter-spacing:.3px}
+header h1 span{color:var(--gold)}
+.pill{font-size:12px;padding:2px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.pill.live{color:var(--green);border-color:#1f5c45}
+.pill.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px;animation:p 1.2s infinite}
+@keyframes p{50%{opacity:.25}}
+main{display:grid;grid-template-columns:300px 1fr 320px;height:calc(100vh - 55px)}
+aside,section{overflow:auto}
+aside{padding:16px;border-right:1px solid var(--line);background:var(--panel)}
+aside.right{border-right:0;border-left:1px solid var(--line)}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:18px 0 8px}
+h2:first-child{margin-top:0}
+form{display:grid;gap:8px}
+input,button{font:inherit;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:8px 10px}
+button{background:var(--gold);color:#1a1400;font-weight:600;border:0;cursor:pointer}
+button:disabled{opacity:.5;cursor:wait}
+label.chk{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:13px}
+.sess{padding:8px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:4px}
+.sess:hover{background:var(--panel2)}
+.sess.on{border-color:var(--gold);background:var(--panel2)}
+.sess small{color:var(--muted);display:block}
+#feed{padding:20px 28px 80px;max-width:980px;margin:0 auto}
+.phase{margin:26px 0 12px;display:flex;align-items:center;gap:10px;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1.5px}
+.phase::after{content:"";flex:1;height:1px;background:var(--line)}
+.msg{display:flex;gap:12px;margin:10px 0;animation:in .25s ease}
+@keyframes in{from{opacity:0;transform:translateY(4px)}}
+.av{flex:0 0 36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:700;font-size:13px;color:#0b0e14}
+.bubble{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-width:0}
+.who{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px}
+.who b{font-size:14px}
+.who .m{color:var(--muted);font-size:11px;font-family:ui-monospace,monospace}
+.who .k{font-size:11px;color:var(--muted);margin-left:auto}
+.status{color:var(--muted);font-size:13px;margin:6px 0 6px 48px}
+.status.error{color:var(--red)}
+.picks{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tk{font-family:ui-monospace,monospace;font-size:12px;padding:2px 8px;border-radius:6px;background:var(--panel2);border:1px solid var(--line)}
+.tk.cash{color:var(--muted)}
+details{margin-top:6px;color:var(--muted);font-size:12px}
+details pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);padding:8px;border-radius:8px;max-height:320px;overflow:auto}
+.ruling{border:1px solid var(--gold);background:linear-gradient(180deg,#221c0a,var(--panel));border-radius:14px;padding:16px 18px;margin:14px 0}
+.ruling .big{font-size:26px;font-weight:800;color:var(--gold);font-family:ui-monospace,monospace}
+.quant{border:1px dashed var(--blue);border-radius:12px;padding:12px 14px;margin:10px 0;color:#cfe0ff}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+td,th{padding:5px 4px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--muted);font-weight:500}
+.up{color:var(--green)}.dn{color:var(--red)}
+.empty{color:var(--muted);text-align:center;margin-top:30vh}
+.disc{font-size:11.5px;color:var(--muted);margin-top:18px;line-height:1.45}
+@media (max-width:1100px){main{grid-template-columns:1fr;height:auto}aside{border:0}#feed{padding:16px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Wall Street <span>Council</span></h1>
+  <span id="live" class="pill">idle</span>
+  <span id="clock" class="pill"></span>
+  <span id="ration" class="pill" title="Codex (ChatGPT plan) calls used today, US Eastern day"></span>
+</header>
+<main>
+  <aside>
+    <h2>Convene the council</h2>
+    <form id="conv">
+      <input name="budget" type="number" step="0.01" min="1" value="10" title="Budget in dollars">
+      <input name="horizon" value="end of this month" title="Horizon">
+      <input name="tickers" placeholder="Extra tickers, e.g. NVDA, DKNG">
+      <input name="rounds" type="number" min="0" max="3" value="1" title="Cross-examination rounds">
+      <label class="chk"><input type="checkbox" name="include_claude"> Seat Claude (uses your Max plan)</label>
+      <button id="go">Convene</button>
+    </form>
+    <h2>Sessions</h2>
+    <div id="sessions"></div>
+    <p class="disc">Paper trading simulation. Model opinions, not financial advice. Short-horizon returns are mostly noise and no council can remove that.</p>
+  </aside>
+  <section><div id="feed"><div class="empty">Pick a session or convene the council.</div></div></section>
+  <aside class="right">
+    <h2>Seat leaderboard</h2>
+    <div id="board"><small style="color:var(--muted)">No votes yet.</small></div>
+    <h2>Paper portfolio</h2>
+    <div id="port"><small style="color:var(--muted)">No positions.</small></div>
+  </aside>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const PAL = ["#f5c451","#6aa9ff","#3ddc97","#ff8fab","#b692ff","#ffb86b","#5ee3e3","#c3e88d","#ff6b6b","#9aa5ff"];
+const colors = {};
+const col = n => colors[n] ??= (n==="Moderator"||n==="Research desk"||n==="Quant check") ? "#8a93a6" : PAL[Object.keys(colors).filter(k=>!["Moderator","Research desk","Quant check"].includes(k)).length % PAL.length];
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const PHASES = {floor:"Trading floor",start:"Convened",research:"Research desk",opening:"Opening pitches",debate:"Cross-examination",vote:"Final vote",ruling:"The ruling",quant:"Quant check",close:"Paper position",end:"Adjourned"};
+let current = null, es = null, lastPhase = null;
+
+function initials(n){ return n.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase(); }
+function pct(x){ if(x==null) return "–"; const c = x>0?"up":x<0?"dn":""; return `<span class="${c}">${x>0?"+":""}${x}%</span>`; }
+
+function render(e){
+  const feed = $("#feed");
+  if (feed.querySelector(".empty")) feed.innerHTML = "";
+  if (e.phase !== lastPhase){ lastPhase = e.phase; feed.insertAdjacentHTML("beforeend", `<div class="phase">${PHASES[e.phase]||e.phase}</div>`); }
+  const d = e.data || {};
+  if (e.kind === "status" || e.kind === "error" && e.speaker === "Moderator"){
+    feed.insertAdjacentHTML("beforeend", `<div class="status ${e.kind}">${e.speaker === "Moderator" ? "" : "<b>"+esc(e.speaker)+":</b> "}${esc(e.text)}</div>`);
+  } else if (e.kind === "ruling"){
+    const r = d.horizon_return_pct || {};
+    feed.insertAdjacentHTML("beforeend", `<div class="ruling"><div class="who"><b style="color:${col(e.speaker)}">${esc(e.speaker)}</b><span class="m">${esc(e.model)}</span><span class="k">chair's ruling</span></div>
+      <div class="big">${esc(d.decision)}</div>
+      <div>Entry window: <b>${esc(d.entry_window_et||"–")}</b> · confidence ${esc(d.confidence??"–")}/10 · stop ${esc(d.stop_loss_pct??"–")}% · take profit ${esc(d.take_profit_pct??"–")}%</div>
+      <div>Council view to horizon: bear ${pct(r.bear)} · base ${pct(r.base)} · bull ${pct(r.bull)}</div>
+      <p>${esc(d.why)}</p>${d.dissent?`<p><b>Dissent:</b> ${esc(d.dissent)}</p>`:""}${d.what_would_change_our_mind?`<p><b>Would change our mind:</b> ${esc(d.what_would_change_our_mind)}</p>`:""}</div>`);
+  } else if (e.kind === "quant" || e.kind === "paper" || e.kind === "tally" || e.kind === "brief"){
+    feed.insertAdjacentHTML("beforeend", `<div class="quant">${esc(e.text)}</div>`);
+  } else {
+    let picks = "";
+    if (d.picks) picks = d.picks.map(p=>`<span class="tk">${esc(p.ticker)} · ${esc(p.conviction)}/10</span>`).join("");
+    if (d.current_pick) picks = `<span class="tk ${d.current_pick.ticker==="CASH"?"cash":""}">now: ${esc(d.current_pick.ticker)} · ${esc(d.current_pick.conviction)}/10</span>` + (d.changed_mind?`<span class="tk">changed mind</span>`:"");
+    if (d.vote) picks = `<span class="tk ${d.vote==="CASH"?"cash":""}">VOTE ${esc(d.vote)}</span><span class="tk">${esc(d.entry_window_et||"")}</span>`;
+    if (d.challenges) picks += d.challenges.map(c=>`<span class="tk">→ ${esc(c.to)}</span>`).join("");
+    const raw = e.data ? `<details><summary>full reasoning</summary><pre>${esc(JSON.stringify(e.data,null,2))}</pre></details>` : "";
+    feed.insertAdjacentHTML("beforeend", `<div class="msg"><div class="av" style="background:${col(e.speaker)}">${initials(e.speaker)}</div>
+      <div class="bubble"><div class="who"><b style="color:${col(e.speaker)}">${esc(e.speaker)}</b><span class="m">${esc(e.model)}</span><span class="k">${new Date(e.ts*1000).toLocaleTimeString()}</span></div>
+      <div class="${e.kind==="error"?"dn":""}">${esc(e.text)}</div><div class="picks">${picks}</div>${raw}</div></div>`);
+  }
+  const sc = feed.parentElement; if (sc.scrollHeight - sc.scrollTop - sc.clientHeight < 400) sc.scrollTop = sc.scrollHeight;
+}
+
+function open(sid){
+  current = sid; lastPhase = null; $("#feed").innerHTML = "";
+  document.querySelectorAll(".sess").forEach(n => n.classList.toggle("on", n.dataset.id === sid));
+  es && es.close();
+  es = new EventSource(`/api/stream?session=${sid}`);
+  es.onmessage = m => { const e = JSON.parse(m.data); render(e); if (e.phase === "end") { refresh(); } };
+}
+
+async function refresh(){
+  const ss = await (await fetch("/api/sessions")).json();
+  $("#sessions").innerHTML = ss.map(s => `<div class="sess ${s.id===current?"on":""}" data-id="${s.id}">
+    <b>${s.id.startsWith("floor-") ? "Trading floor " + s.id.slice(6) : s.verdict ? esc(s.verdict.decision) : s.status === "running" ? "debating…" : esc(s.status)}</b>${s.id.startsWith("floor-") ? "" : " · $" + s.budget}
+    <small>${new Date(s.created*1000).toLocaleString()} · ${s.seats.length} seats</small></div>`).join("") || `<small style="color:var(--muted)">None yet.</small>`;
+  document.querySelectorAll(".sess").forEach(n => n.onclick = () => open(n.dataset.id));
+  const bud = await (await fetch("/api/budget")).json();
+  $("#ration").textContent = `ChatGPT ${bud.codex.used}/${bud.codex.per_day} today` + (bud.live_pid ? " · floor live" : "");
+  const running = ss.some(s => s.status === "running") || !!bud.live_pid;
+  $("#live").className = "pill" + (running ? " live" : ""); $("#live").textContent = running ? "live" : "idle";
+  if (!current && ss.length) open((ss.find(s => s.status === "live") || ss[0]).id);
+}
+
+async function side(){
+  const [b, p] = await Promise.all([fetch("/api/leaderboard").then(r=>r.json()), fetch("/api/portfolio").then(r=>r.json())]);
+  if (b.length) $("#board").innerHTML = `<table><tr><th>Seat</th><th>Votes</th><th>Avg</th><th>Hit</th></tr>${b.map(s=>`<tr><td style="color:${col(s.seat)}">${esc(s.seat)}</td><td>${s.votes}</td><td>${pct(s.avg_return_pct)}</td><td>${s.hit_rate_pct??"–"}%</td></tr>`).join("")}</table>`;
+  if (p.positions.length) $("#port").innerHTML = `<div>Invested $${p.invested} → <b>$${p.value}</b> ${pct(p.invested?+((p.value/p.invested-1)*100).toFixed(2):null)}</div>
+    <table><tr><th>#</th><th>Ticker</th><th>In</th><th>Now</th><th>P&amp;L</th></tr>${p.positions.map(x=>`<tr><td>${x.id}</td><td>${esc(x.ticker)}</td><td>$${x.entry_price.toFixed(2)}</td><td>${x.price_now?"$"+x.price_now.toFixed(2):"–"}</td><td>${pct(x.pnl_pct)}</td></tr>`).join("")}</table>`;
+}
+
+$("#conv").onsubmit = async ev => {
+  ev.preventDefault(); const f = new FormData(ev.target); $("#go").disabled = true;
+  const body = Object.fromEntries(f); body.include_claude = f.has("include_claude");
+  const r = await (await fetch("/api/convene", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)})).json();
+  $("#go").disabled = false; current = null; await refresh(); open(r.session);
+};
+setInterval(() => { $("#clock").textContent = new Date().toLocaleString("en-US",{timeZone:"America/New_York",hour:"2-digit",minute:"2-digit",weekday:"short"}) + " ET"; }, 1000);
+refresh(); side(); setInterval(refresh, 5000); setInterval(side, 60000);
+</script>
+</body>
+</html>
