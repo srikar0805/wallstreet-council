@@ -21,10 +21,11 @@ WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint
 mcp = MCPServer(
     "wallstreet-council",
     instructions=(
-        "A panel of AI models (Gemini, NVIDIA-hosted models, Codex, optionally Claude) that debate which US stock "
-        "to buy with a small budget, as a PAPER-TRADING simulation. convene_council starts a debate in the "
-        "background and returns a session id and a live monitor URL; poll get_transcript with `since` to follow "
-        "it. Nothing is ever bought. Present rulings as model opinions, never as financial advice."
+        "A panel of AI models (Gemini, NVIDIA-hosted models, Codex, optionally Claude) that debate US and Indian "
+        "stocks, IPOs and any question the client brings, as a PAPER-TRADING simulation that counts broker charges "
+        "and taxes and learns from graded outcomes. convene_council starts a debate in the background and returns "
+        "a session id and a live monitor URL; poll get_transcript with `since` to follow it. say_to_floor talks to "
+        "the continuous floor. Nothing is ever bought. Present rulings as model opinions, never financial advice."
     ),
 )
 MONITOR_URL = ""
@@ -38,18 +39,22 @@ def _monitor() -> str:
 
 
 @mcp.tool(annotations=WRITE, structured_output=True)
-def convene_council(budget: float = 10.0, horizon: str = "end of this month", tickers: list[str] | None = None,
-                    rounds: int = 1, include_claude: bool = False) -> dict[str, Any]:
+def convene_council(mode: str = "pick", market: str = "US", topic: str | None = None, budget: float | None = None,
+                    horizon: str = "end of this month", tickers: list[str] | None = None, rounds: int = 1,
+                    include_claude: bool = False, target: float | None = None) -> dict[str, Any]:
     """Start a council debate in the background. Returns the session id and the live monitor URL.
 
-    budget: paper dollars to allocate. horizon: plain-English horizon. tickers: extra symbols to consider on top
-    of today's screened movers and the core watchlist. rounds: cross-examination rounds (0 to 3).
+    mode: "pick" (which stock to buy), "ipo" (which IPOs to apply for, avoid or buy after listing), or "topic"
+    (any question in `topic`). market: "US", "IN" (NSE/BSE), or "BOTH" (ipo and topic only).
+    budget: paper money, default $10 (US) or Rs 1000 (IN). target: goal amount, default 10x the budget.
+    tickers: extra symbols (NSE symbols end in .NS). rounds: cross-examination rounds (0 to 3).
     include_claude: seat Claude Opus through the local Claude Code CLI (uses the Max plan).
     A full council takes about 3 to 8 minutes.
     """
     url = _monitor()
     sid = monitor.start_council_thread(budget=budget, horizon=horizon, tickers=tickers or [],
-                                       rounds=max(0, min(int(rounds), 3)), include_claude=include_claude)
+                                       rounds=max(0, min(int(rounds), 3)), include_claude=include_claude,
+                                       mode=mode, market_code=market, topic=topic, target=target)
     return {"session": sid, "monitor": f"{url}/#{sid}", "status": "running"}
 
 
@@ -107,15 +112,35 @@ def monitor_url() -> dict[str, Any]:
 
 
 @mcp.tool(annotations=WRITE, structured_output=True)
-def start_live(interval_open: int = 15, interval_closed: int = 60, council_times: str = "09:05,15:30",
-               budget: float = 10.0) -> dict[str, Any]:
-    """Start the continuous trading floor in its own process: free-tier seats chat every `interval_open`
-    minutes while the market is open (`interval_closed` otherwise), and full councils run at `council_times`
-    (Eastern, weekdays). Codex chairs only those councils, within its daily ration. Keeps running after this
-    MCP server exits; stop it with stop_live."""
+def say_to_floor(text: str) -> dict[str, Any]:
+    """Post the client's message or suggestion to the live trading floor ("what if I apply for this IPO and get
+    allotted?"). The floor wakes and the next speakers answer it; councils also read recent client messages."""
     from . import floor
-    pid = floor.start_detached(interval_open=interval_open, interval_closed=interval_closed,
-                               council_times=council_times, budget=budget)
+    seq = floor.say_to_floor(text)
+    return {"posted": seq, "floor_session": floor.floor_id(), "floor_running": bool(floor.running_pid())}
+
+
+@mcp.tool(annotations=READ_ONLY, structured_output=True)
+def track_record() -> dict[str, Any]:
+    """Every ruling graded against the index (S&P 500 or Nifty 50), per-seat records and trust weights, and the
+    lessons the council has learned from its outcomes."""
+    from . import learning
+    learning.grade()
+    return learning.track_record()
+
+
+@mcp.tool(annotations=WRITE, structured_output=True)
+def start_live(interval_open: int = 15, interval_closed: int = 60,
+               schedule: str = "pick-US@09:05, pick-IN@09:20, ipo-IN@12:30", budget: float = 10.0,
+               goal: float = 100.0, publish: bool = False) -> dict[str, Any]:
+    """Start the continuous trading floor in its own process: free-tier seats chat every `interval_open`
+    minutes while either market is open (`interval_closed` otherwise) about both markets, IPOs, a rotating
+    spotlight stock and the client's goal; full councils run on `schedule` (each time in that market's zone,
+    weekdays). Codex chairs only those councils, within its daily ration. publish pushes a read-only snapshot to
+    GitHub Pages every 15 minutes. Keeps running after this MCP server exits; stop it with stop_live."""
+    from . import floor
+    pid = floor.start_detached(interval_open=interval_open, interval_closed=interval_closed, schedule=schedule,
+                               budget=budget, goal=goal, publish=publish)
     return {"pid": pid, "floor_session": floor.floor_id(), "monitor": _monitor()}
 
 

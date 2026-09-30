@@ -43,3 +43,32 @@ def test_horizon_end():
     assert horizon_end("end of October 2026", t) == date(2026, 10, 31)
     assert horizon_end("end of next month", t) == date(2026, 10, 31)
     assert horizon_end("end of March", t) == date(2027, 3, 31)
+
+
+def test_costs_india_delivery_dp_charge_dominates():
+    from wallstreet_council import costs
+    r = costs.round_trip("IN-delivery-zero-brokerage", 1000)
+    assert r["charges"]["dp_charge"] == 15.93
+    assert 1.7 < r["total_charges_pct_of_amount"] < 2.0
+    assert costs.round_trip("US-zero-commission", 10, price=100)["total_charges"] == 0.0
+
+
+def test_goal_math_10x():
+    from wallstreet_council import costs
+    g = costs.goal_math(10, 100)
+    assert g["gain_needed_pct"] == 900.0
+    assert g["required_monthly_return_pct"]["in 1 month"] == 900.0
+    assert 20 < g["years_needed_at_steady_cagr"]["12%/yr"] < 21
+
+
+def test_trust_weight_shrinks_toward_one():
+    from wallstreet_council.learning import trust_weight
+    assert trust_weight([]) == 1.0
+    assert 1.0 < trust_weight([5.0]) < trust_weight([5.0] * 20) <= 1.5
+    assert trust_weight([-10.0] * 20) >= 0.5
+
+
+def test_schedule_parse():
+    from wallstreet_council.floor import parse_schedule
+    s = parse_schedule("pick-US@09:05, ipo-IN@12:30")
+    assert s[1] == {"mode": "ipo", "market": "IN", "hh": 12, "mm": 30, "key": "ipo-IN@12:30"}

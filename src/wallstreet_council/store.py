@@ -38,13 +38,21 @@ def conn() -> sqlite3.Connection:
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA journal_mode=WAL")
     c.executescript(SCHEMA)
+    for table, col in (("sessions", "mode TEXT"), ("sessions", "market TEXT"), ("sessions", "topic TEXT"),
+                       ("positions", "currency TEXT")):
+        try:  # additive migrations for databases made by older versions
+            c.execute(f"ALTER TABLE {table} ADD COLUMN {col}")
+        except sqlite3.OperationalError:
+            pass
     return c
 
 
-def create_session(sid: str, budget: float, horizon: str, seats: list[dict], status: str = "running") -> None:
+def create_session(sid: str, budget: float, horizon: str, seats: list[dict], status: str = "running",
+                   mode: str = "pick", market: str = "US", topic: str | None = None) -> None:
     with _lock, conn() as c:
-        c.execute("INSERT OR IGNORE INTO sessions VALUES (?,?,?,?,?,?,?,?)",
-                  (sid, time.time(), status, budget, horizon, json.dumps(seats), None, None))
+        c.execute("INSERT OR IGNORE INTO sessions (id, created, status, budget, horizon, seats, verdict, error, mode, "
+                  "market, topic) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                  (sid, time.time(), status, budget, horizon, json.dumps(seats), None, None, mode, market, topic))
 
 
 def finish_session(sid: str, status: str, verdict: dict | None = None, error: str | None = None) -> None:
@@ -96,11 +104,14 @@ def session(sid: str) -> dict | None:
     return None
 
 
-def open_position(sid: str, ticker: str, dollars: float, price: float, target_date: str) -> int:
+def open_position(sid: str, ticker: str, dollars: float, price: float, target_date: str, shares: float | None = None,
+                  currency: str = "USD") -> int:
+    """`dollars` is the amount invested in `currency`; `shares` defaults to fractional dollars/price."""
     with _lock, conn() as c:
         cur = c.execute("INSERT INTO positions (session, ticker, dollars, entry_price, shares, opened, target_date, "
-                        "status) VALUES (?,?,?,?,?,?,?,?)",
-                        (sid, ticker, dollars, price, dollars / price, time.time(), target_date, "open"))
+                        "status, currency) VALUES (?,?,?,?,?,?,?,?,?)",
+                        (sid, ticker, dollars, price, shares if shares is not None else dollars / price, time.time(),
+                         target_date, "open", currency))
         return cur.lastrowid
 
 
@@ -143,3 +154,10 @@ def fail_stale_sessions() -> None:
     with _lock, conn() as c:
         c.execute("UPDATE sessions SET status='failed', error='process stopped' "
                   "WHERE status='running' AND created < ?", (time.time() - 3600,))
+
+
+def user_messages(n: int = 12) -> list[dict]:
+    """The client's own messages, newest last, across every session."""
+    with conn() as c:
+        rows = c.execute("SELECT * FROM events WHERE kind='user' ORDER BY seq DESC LIMIT ?", (n,)).fetchall()
+    return [dict(r) for r in reversed(rows)]

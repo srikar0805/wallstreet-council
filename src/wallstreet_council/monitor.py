@@ -53,15 +53,41 @@ async def api_portfolio(_: Request):
 
 
 async def api_leaderboard(_: Request):
-    return JSONResponse(await asyncio.to_thread(scoreboard.leaderboard))
+    from . import learning
+    stats = await asyncio.to_thread(learning.seat_stats)
+    return JSONResponse(sorted(stats.values(), key=lambda s: -(s["live_avg_excess_pct"] or -1e9)))
 
 
 async def api_convene(req: Request):
     b = await req.json()
-    sid = start_council_thread(budget=float(b.get("budget", 10)), horizon=b.get("horizon") or "end of this month",
-                               tickers=[t.strip().upper() for t in (b.get("tickers") or "").split(",") if t.strip()],
-                               rounds=int(b.get("rounds", 1)), include_claude=bool(b.get("include_claude")))
+    try:
+        sid = start_council_thread(
+            budget=float(b["budget"]) if b.get("budget") else None, horizon=b.get("horizon") or "end of this month",
+            tickers=[t.strip().upper() for t in (b.get("tickers") or "").split(",") if t.strip()],
+            rounds=int(b.get("rounds", 1)), include_claude=bool(b.get("include_claude")),
+            mode=b.get("mode") or "pick", market_code=b.get("market") or "US", topic=b.get("topic") or None)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
     return JSONResponse({"session": sid})
+
+
+async def api_say(req: Request):
+    b = await req.json()
+    text = (b.get("text") or "").strip()
+    if not text:
+        return JSONResponse({"error": "empty"}, status_code=400)
+    sid = b.get("session")
+    if sid and not sid.startswith("floor-"):
+        store.add_event(sid, "client", "Client", "user", text[:1000])  # a running council reads it next phase
+    else:
+        from .floor import say_to_floor
+        say_to_floor(text)
+    return JSONResponse({"ok": True})
+
+
+async def api_track(_: Request):
+    from . import learning
+    return JSONResponse(await asyncio.to_thread(learning.track_record))
 
 
 async def api_budget(_: Request):
@@ -90,7 +116,8 @@ async def api_stream(req: Request):
 app = Starlette(routes=[
     Route("/", index), Route("/api/sessions", api_sessions), Route("/api/events", api_events),
     Route("/api/stream", api_stream), Route("/api/portfolio", api_portfolio),
-    Route("/api/leaderboard", api_leaderboard), Route("/api/budget", api_budget), Route("/api/convene", api_convene, methods=["POST"]),
+    Route("/api/leaderboard", api_leaderboard), Route("/api/budget", api_budget),
+    Route("/api/say", api_say, methods=["POST"]), Route("/api/track", api_track), Route("/api/convene", api_convene, methods=["POST"]),
 ])
 
 

@@ -28,10 +28,15 @@ def portfolio() -> dict:
                      "value_now": round(value, 2) if value else None,
                      "pnl": round(value - p["dollars"], 2) if value else None,
                      "pnl_pct": round((value / p["dollars"] - 1) * 100, 2) if value else None})
-    invested = sum(r["dollars"] for r in rows)
-    worth = sum(r["value_now"] or r["dollars"] for r in rows)
-    return {"positions": rows, "invested": round(invested, 2), "value": round(worth, 2),
-            "pnl": round(worth - invested, 2), "note": "Paper trading only."}
+    totals: dict[str, dict] = {}
+    for r in rows:
+        t = totals.setdefault(r.get("currency") or "USD", {"invested": 0.0, "value": 0.0})
+        t["invested"] += r["dollars"]
+        t["value"] += r["value_now"] or r["dollars"]
+    for t in totals.values():
+        t.update({k: round(v, 2) for k, v in t.items()})
+        t["pnl"] = round(t["value"] - t["invested"], 2)
+    return {"positions": rows, "totals_by_currency": totals, "note": "Paper trading only."}
 
 
 def leaderboard() -> list[dict]:
