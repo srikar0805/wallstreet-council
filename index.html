@@ -83,7 +83,8 @@ th{color:var(--muted);font-weight:500}
 .lesson{background:var(--panel2);border-left:3px solid var(--gold);padding:6px 10px;border-radius:6px;margin:6px 0;font-size:12.5px}
 .note{color:var(--muted);font-size:12px}
 body.static .local{display:none!important}
-@media (max-width:1100px){main{grid-template-columns:1fr;height:auto}aside{border:0}#feed{padding:16px}}
+@media (max-width:1100px){main{grid-template-columns:1fr;height:auto}aside{border:0}#feed{padding:16px}
+  body.static aside.right{order:1}body.static section{order:2;max-height:80vh}body.static aside:first-child{order:3}}
 </style>
 </head>
 <body>
