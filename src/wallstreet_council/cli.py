@@ -127,8 +127,14 @@ def main(argv: list[str] | None = None) -> None:
         import atexit
         import os
         from . import floor
-        if floor.running_pid() and floor.running_pid() != os.getpid():
-            sys.exit(f"already live as pid {floor.running_pid()}; council stop-live first")
+        pid = floor.running_pid()
+        if pid and pid != os.getpid():
+            from .service import AGENTS, LABELS
+            svc = (AGENTS / f"{LABELS['live']}.plist").exists()
+            sys.exit(f"The floor is already running (pid {pid})" + (" as a background service" if svc else "") + ".\n"
+                     "  watch:  http://127.0.0.1:8765   or   tail -f ~/.wallstreet-council/live.log\n"
+                     "  talk:   uv run council say \"your message\"\n"
+                     + ("  stop:   uv run council uninstall-service" if svc else "  stop:   uv run council stop-live"))
         floor.HOME.mkdir(parents=True, exist_ok=True)
         floor.PID_FILE.write_text(str(os.getpid()))
         atexit.register(lambda: floor.PID_FILE.unlink(missing_ok=True))
