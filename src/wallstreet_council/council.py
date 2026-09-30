@@ -74,7 +74,7 @@ No real money moves. Your job is to argue well, not to sound confident.
 - The client's GOAL (in COSTS.goal) is ambitious. Weigh every route to it honestly (compounding, concentrated
   stocks, IPOs, intraday, options, leveraged products, penny stocks) with its realistic odds and what the client
   loses in the common bad case. Never pretend a 10x is likely; show the arithmetic.
-- The CLIENT NOTES are the client speaking to you. Address them directly when they are relevant.
+- The CLIENT PROFILE and CLIENT NOTES are the client speaking to you. Address them directly when relevant.
 - Reply with ONE JSON object and nothing else."""
 
 
@@ -274,12 +274,16 @@ class Council:
         return out[:6]
 
     def client_notes(self) -> str:
-        """What the client has said: in this session, and recently on the trading floor."""
-        from .floor import floor_id
-        mine = [e for e in store.last_events(self.id, 60) if e["kind"] == "user"]
-        floor = [e for e in store.last_events(floor_id(), 80) if e["kind"] == "user"][-8:]
-        notes = [f"- {e['text']}" for e in floor + mine]
-        return ("CLIENT NOTES\n" + "\n".join(notes) + "\n\n") if notes else ""
+        """The client's standing profile and latest messages, plus anything said into this session."""
+        from . import memory
+        try:
+            block = memory.client_block()
+        except Exception:  # noqa: BLE001
+            block = ""
+        mine = [f"- {e['text']}" for e in store.last_events(self.id, 60) if e["kind"] == "user"]
+        if mine:
+            block += "CLIENT NOTES DURING THIS COUNCIL\n" + "\n".join(mine) + "\n\n"
+        return block
 
     def head(self) -> str:
         return f"BRIEF\n{self.brief_text}\n\n{self.client_notes()}"

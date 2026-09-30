@@ -28,7 +28,7 @@ from pathlib import Path
 
 from . import costs, dossier
 from . import ipo as ipo_desk
-from . import learning, llm, market, store
+from . import learning, llm, market, memory, store
 from .council import Council, load_seats
 
 HOME = Path(os.environ.get("COUNCIL_HOME", Path.home() / ".wallstreet-council"))
@@ -39,8 +39,10 @@ DEFAULT_SCHEDULE = "pick-US@09:05, pick-IN@09:20, ipo-IN@12:30"
 
 FLOOR_RULES = """You are on the trading floor of the Wall Street Council, a PAPER-TRADING simulation covering US and
 Indian markets and IPOs. The floor is a running conversation between AI analysts between full council meetings.
-- If the CLIENT has just said something, answer the client first, directly. Remember what the client told you
-  earlier (CLIENT HISTORY) and build on it.
+- If the CLIENT has just said something, answer the client first, directly. The CLIENT PROFILE holds everything
+  the client has ever told us; use it. If it lists open_questions, make sure each gets a real answer over the
+  next rounds.
+- TODAY SO FAR is the digest of this floor's conversation: build on it, do not repeat it.
 - Keep the client's GOAL in view: turning a small stake into ten times as much. Debate every route (compounding,
   single stocks, IPO applications and what happens if allotted, intraday, options, penny stocks) with honest odds.
   Count broker charges, depository charges, transaction taxes and capital-gains tax (COSTS); name the account type.
@@ -189,7 +191,19 @@ class Floor:
                             f"Spotlight: {spot['symbol']}, {hh.get('years_listed')} years of history, 5y CAGR "
                             f"{hh.get('cagr_5y_pct')}%, worst drawdown {hh.get('max_drawdown_all_time_pct')}%, "
                             f"{hh.get('off_all_time_high_pct')}% from its all-time high.", data={"dossier": spot})
-        history = "\n".join(f"- {m['text']}" for m in store.user_messages(12))
+        if user_msgs:
+            try:
+                memory.update_client_profile()
+            except Exception:  # noqa: BLE001
+                pass
+        client = memory.client_block()
+        self.ticks = getattr(self, "ticks", 0) + 1
+        if self.ticks % 4 == 0:
+            try:
+                memory.update_floor_digest(sid)
+            except Exception:  # noqa: BLE001
+                pass
+        digest = memory.floor_digest(sid)
         rulings = [{"market": s.get("market"), "mode": s.get("mode"), **{k: (s["verdict"] or {}).get(k)
                     for k in ("decision", "why")}} for s in store.sessions(15)
                    if s["verdict"] and not s["id"].startswith("floor-")][:3]
@@ -197,18 +211,19 @@ class Floor:
             lessons = [x["lesson"] for x in learning.active_lessons()][:6]
         except Exception:  # noqa: BLE001
             lessons = []
-        client = "\n".join(f"CLIENT: {m['text']}" for m in user_msgs)
+        just_said = "\n".join(f"CLIENT: {m['text']}" for m in user_msgs)
         for _ in range(self.speakers):
             seat = next(self.bench)
             convo = "\n".join(f"{'CLIENT' if e['kind'] == 'user' else e['speaker']}: {e['text']}"
                               for e in store.last_events(sid, 12) if e["kind"] in ("chat", "ruling", "brief", "user"))
             prompt = (f"FLOOR DATA\n{data}\n\nGOAL AND COSTS\n{json.dumps(self.goal_block, default=str)}\n\n"
                       f"SPOTLIGHT\n{json.dumps(spot, default=str)[:5000] if spot else '(none)'}\n\n"
-                      f"CLIENT HISTORY (what the client has told us)\n{history or '(nothing yet)'}\n\n"
+                      f"{client or 'CLIENT PROFILE\n(nothing yet)\n\n'}"
+                      f"TODAY SO FAR\n{json.dumps(digest) if digest else '(just started)'}\n\n"
                       f"RECENT COUNCIL RULINGS\n{json.dumps(rulings)}\n\n"
                       f"LESSONS THE COUNCIL HAS LEARNED\n{json.dumps(lessons)}\n\n"
                       f"CONVERSATION SO FAR\n{convo or '(you open the floor)'}\n\n"
-                      + (f"THE CLIENT JUST SAID\n{client}\n\n" if client else "") + "Your turn.")
+                      + (f"THE CLIENT JUST SAID\n{just_said}\n\n" if just_said else "") + "Your turn.")
             system = f"{FLOOR_RULES}\n\nYou are {seat['name']}, the {seat['role']}. Lens: {seat['focus']}."
             for model in [seat["model"], *seat.get("fallback", [])]:
                 try:

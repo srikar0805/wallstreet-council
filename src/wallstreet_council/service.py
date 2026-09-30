@@ -17,7 +17,8 @@ from pathlib import Path
 from .floor import HOME
 
 AGENTS = Path.home() / "Library" / "LaunchAgents"
-LABELS = {"live": "com.wallstreet-council.live", "monitor": "com.wallstreet-council.monitor"}
+LABELS = {"live": "com.wallstreet-council.live", "monitor": "com.wallstreet-council.monitor",
+          "phone": "com.wallstreet-council.phone", "tunnel": "com.wallstreet-council.tunnel"}
 PROJECT = Path(__file__).resolve().parents[2]
 
 
@@ -36,14 +37,17 @@ def _plist(label: str, args: list[str], env: dict[str, str]) -> dict:
     }
 
 
-def install(publish: bool = False, extra_live_args: list[str] | None = None) -> list[str]:
+def install(publish: bool = False, extra_live_args: list[str] | None = None, phone: bool = False) -> list[str]:
     AGENTS.mkdir(parents=True, exist_ok=True)
     HOME.mkdir(parents=True, exist_ok=True)
     env = {k: v for k, v in os.environ.items() if k.startswith("COUNCIL_")}
     if publish:
         env["COUNCIL_PUBLISH"] = "1"
     done = []
-    for key, args in (("live", ["live", *(extra_live_args or [])]), ("monitor", ["monitor"])):
+    jobs = [("live", ["live", *(extra_live_args or [])]), ("monitor", ["monitor"])]
+    if phone or (AGENTS / f"{LABELS['phone']}.plist").exists():
+        jobs += [("phone", ["phone-serve"]), ("tunnel", ["tunnel"])]
+    for key, args in jobs:
         path = AGENTS / f"{LABELS[key]}.plist"
         subprocess.run(["launchctl", "unload", str(path)], capture_output=True)
         path.write_bytes(plistlib.dumps(_plist(LABELS[key], args, env)))

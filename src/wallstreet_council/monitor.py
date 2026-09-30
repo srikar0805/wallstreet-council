@@ -85,6 +85,17 @@ async def api_say(req: Request):
     return JSONResponse({"ok": True})
 
 
+async def api_phone(req: Request):
+    """Local monitor only (the phone gateway drops this route): the phone link and password."""
+    host = req.headers.get("host", "").split(":")[0]
+    if host not in ("127.0.0.1", "localhost") or (req.client and req.client.host not in ("127.0.0.1", "::1")):
+        return JSONResponse({"error": "local only"}, status_code=403)
+    from . import phone
+    from .service import AGENTS
+    return JSONResponse({"url": phone.current_url(), "installed": (AGENTS / "com.wallstreet-council.tunnel.plist").exists(),
+                         "password": phone.password() if req.query_params.get("reveal") == "1" else None})
+
+
 async def api_track(_: Request):
     from . import learning
     return JSONResponse(await asyncio.to_thread(learning.track_record))
@@ -117,7 +128,7 @@ app = Starlette(routes=[
     Route("/", index), Route("/api/sessions", api_sessions), Route("/api/events", api_events),
     Route("/api/stream", api_stream), Route("/api/portfolio", api_portfolio),
     Route("/api/leaderboard", api_leaderboard), Route("/api/budget", api_budget),
-    Route("/api/say", api_say, methods=["POST"]), Route("/api/track", api_track), Route("/api/convene", api_convene, methods=["POST"]),
+    Route("/api/say", api_say, methods=["POST"]), Route("/api/track", api_track), Route("/api/phone", api_phone), Route("/api/convene", api_convene, methods=["POST"]),
 ])
 
 

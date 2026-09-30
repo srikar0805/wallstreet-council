@@ -123,6 +123,14 @@ body.static .local{display:none!important}
         <button id="go">Convene</button>
       </form>
     </div>
+    <div class="local" id="phonebox" style="display:none">
+      <h2>Phone access</h2>
+      <div id="qr" style="background:#fff;padding:8px;border-radius:8px;width:max-content"></div>
+      <p class="note" style="word-break:break-all"><a id="phonelink" style="color:var(--blue)" target="_blank"></a></p>
+      <button type="button" id="reveal" style="background:var(--panel2);color:var(--text);border:1px solid var(--line)">Show password</button>
+      <p id="pw" class="note" style="font-family:ui-monospace,monospace;font-size:15px;color:var(--text)"></p>
+      <p class="note">Scan with your phone camera, then log in once; it remembers you for 30 days. The link changes if the Mac restarts, so check back here.</p>
+    </div>
     <h2>Sessions</h2>
     <div id="sessions"></div>
     <p class="disc">Paper trading simulation. Model opinions, not financial advice. Short-horizon returns are mostly noise; costs and taxes are approximate and depend on your broker and residency.</p>
@@ -145,6 +153,7 @@ body.static .local{display:none!important}
     <div id="port"><small class="note">No positions.</small></div>
   </aside>
 </main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 const STATIC = /*STATIC*/false;
 const $ = s => document.querySelector(s);
@@ -261,6 +270,16 @@ if (!STATIC){
     ev.target.text.value = "";
   };
   $("#chat textarea").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#chat").requestSubmit(); } });
+}
+async function phoneBox(){
+  if (STATIC || !["127.0.0.1","localhost"].includes(location.hostname)) return;
+  const r = await get("/api/phone"); if (!r || !r.url) return;
+  $("#phonebox").style.display = ""; $("#phonelink").href = r.url; $("#phonelink").textContent = r.url;
+  if (window.QRCode && $("#qr").dataset.url !== r.url) { $("#qr").innerHTML = ""; new QRCode($("#qr"), {text: r.url, width: 150, height: 150}); $("#qr").dataset.url = r.url; }
+}
+if (!STATIC) {
+  $("#reveal").onclick = async () => { const r = await get("/api/phone?reveal=1"); $("#pw").textContent = r && r.password ? r.password : "unavailable"; };
+  phoneBox(); setInterval(phoneBox, 30000);
 }
 setInterval(() => { $("#clock").textContent = new Date().toLocaleString("en-US",{timeZone:"America/New_York",hour:"2-digit",minute:"2-digit",weekday:"short"}) + " ET · " + new Date().toLocaleString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit"}) + " IST"; }, 1000);
 refresh(); side(); setInterval(refresh, STATIC ? 60000 : 5000); setInterval(side, 60000);

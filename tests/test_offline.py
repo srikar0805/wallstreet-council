@@ -72,3 +72,22 @@ def test_schedule_parse():
     from wallstreet_council.floor import parse_schedule
     s = parse_schedule("pick-US@09:05, ipo-IN@12:30")
     assert s[1] == {"mode": "ipo", "market": "IN", "hh": 12, "mm": 30, "key": "ipo-IN@12:30"}
+
+
+def test_phone_gateway_requires_login(monkeypatch):
+    from starlette.testclient import TestClient
+    from wallstreet_council import phone
+    monkeypatch.setattr(phone, "password", lambda rotate=False: "test-pass-word-1234")
+    monkeypatch.setattr(phone, "_secret", lambda: b"x" * 32)
+    phone._fails.clear()
+    phone._all_fails.clear()
+    c = TestClient(phone.build_app(), base_url="https://testserver")
+    assert c.get("/", follow_redirects=False).status_code == 303
+    assert c.get("/api/sessions").status_code == 401
+    assert c.post("/login", data={"password": "wrong"}).status_code == 401
+    assert c.post("/login", data={"password": "test-pass-word-1234"}, follow_redirects=False).status_code == 303
+    assert c.get("/api/sessions").status_code == 200
+    assert c.get("/api/phone").status_code == 404  # the password endpoint never exists on the gateway
+    for _ in range(5):
+        c.post("/login", data={"password": "wrong"})
+    assert c.post("/login", data={"password": "wrong"}).status_code == 429

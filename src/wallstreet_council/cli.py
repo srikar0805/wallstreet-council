@@ -63,6 +63,12 @@ def main(argv: list[str] | None = None) -> None:
         sub.add_parser(name)
     isv = sub.add_parser("install-service", help="run floor + monitor under launchd (macOS)")
     isv.add_argument("--publish", action="store_true", help="also push the public snapshot every 15 minutes")
+    isv.add_argument("--phone", action="store_true", help="also run the password-protected phone gateway + tunnel")
+    ph = sub.add_parser("phone", help="phone link (and password with --show-password)")
+    ph.add_argument("--show-password", action="store_true")
+    ph.add_argument("--new-password", action="store_true", help="rotate the password and sign every phone out")
+    sub.add_parser("phone-serve")
+    sub.add_parser("tunnel")
     lv = sub.add_parser("live")
     lv.add_argument("--interval-open", type=int, default=15, help="minutes between floor rounds, market open")
     lv.add_argument("--interval-closed", type=int, default=60, help="minutes between floor rounds, market closed")
@@ -119,8 +125,20 @@ def main(argv: list[str] | None = None) -> None:
             print(json.dumps(learning.track_record(), indent=2, default=str))
     elif a.cmd in ("install-service", "uninstall-service"):
         from . import service
-        done = service.install(publish=a.publish) if a.cmd == "install-service" else service.uninstall()
+        done = service.install(publish=a.publish, phone=a.phone) if a.cmd == "install-service" else service.uninstall()
         print("\n".join(done) or "nothing to do")
+    elif a.cmd == "phone":
+        from . import phone
+        pw = phone.password(rotate=a.new_password)
+        print(f"phone link: {phone.current_url() or '(tunnel not running: council install-service --phone)'}")
+        print(f"password:   {pw}" if a.show_password or a.new_password else
+              "password:   shown on the local monitor (Phone access > Show password), or add --show-password")
+    elif a.cmd == "phone-serve":
+        from . import phone
+        phone.serve()
+    elif a.cmd == "tunnel":
+        from . import phone
+        phone.run_tunnel()
     elif a.cmd == "publish":
         from . import publish
         print(publish.publish())
