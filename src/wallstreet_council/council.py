@@ -76,9 +76,12 @@ No real money moves. Your job is to argue well, not to sound confident.
 - Returns only count AFTER costs and taxes. Use the COSTS block: broker charges, depository charges, securities
   transaction tax, stamp duty, GST, and the capital-gains tax that applies to the holding period. Name the account
   type you assume (delivery, intraday, US zero-commission). Tax rates depend on residency; say so, never guess it.
-- The client's GOAL (in COSTS.goal) is ambitious. Weigh every route to it honestly (compounding, concentrated
-  stocks, IPOs, intraday, options, leveraged products, penny stocks) with its realistic odds and what the client
-  loses in the common bad case. Never pretend a 10x is likely; show the arithmetic.
+- The client's GOAL (in COSTS.goal) is a 10x over the LONG RUN, built one good pick at a time. Do not reject a
+  stock because it cannot reach 10x by this council's horizon; nothing can, and that is not today's question.
+  Today's question: which stock is most likely to BEAT THE WHOLE MARKET (the index) between now and the horizon,
+  after costs? Pick the best one. Choose CASH only if you expect the market itself to fall over the horizon, or
+  every candidate to lose to the index. Never pretend a 10x is close; when you mention the goal, show the
+  arithmetic (years needed at realistic returns).
 - The CLIENT PROFILE and CLIENT NOTES are the client speaking to you. Address them directly when relevant.
 - Reply with ONE JSON object and nothing else."""
 
@@ -296,8 +299,9 @@ class Council:
     # ---- per-mode prompt pieces -----------------------------------------------------------------
     def task(self) -> str:
         if self.mode == "pick":
-            return (f"The client has {self.money(self.budget)} and wants the best return by {self.horizon}. From your "
-                    "lens, pitch up to 2 picks from CANDIDATES (or CASH).\n"
+            return (f"The client has {self.money(self.budget)} to put into ONE stock until {self.horizon}. From your "
+                    "lens, pitch up to 2 CANDIDATES most likely to beat the index over that time (or CASH if you "
+                    "expect the market to fall).\n"
                     'JSON: {"message": "what you say to the table, 3 to 6 sentences, cite brief numbers", '
                     '"market_view": "one line", "picks": [{"ticker": "", "conviction": 1-10, "thesis": "", '
                     '"catalysts": [""], "risks": [""], "entry_window": "e.g. 2026-10-01 10:00-10:30", '
@@ -376,7 +380,8 @@ class Council:
         head = f"{self.head()}DEBATE SO FAR\n{convo}\n\nTASK: Cast your final vote. "
         if self.mode == "pick":
             prices = {c["symbol"]: c for c in self.brief["candidates"]}
-            prompt = head + (f"Client budget {self.money(self.budget)}, horizon {self.horizon}. One ticker or CASH.\n"
+            prompt = head + (f"Client budget {self.money(self.budget)}, horizon {self.horizon}. Vote for the one stock "
+                             "most likely to beat the index by then, or CASH only if you expect the market to fall.\n"
                              'JSON: {"vote": "TICKER or CASH", "confidence": 1-10, "entry_window": "", '
                              '"horizon_return_pct": {"bear": 0, "base": 0, "bull": 0}, "reason": "2 to 3 sentences"}')
 
@@ -474,7 +479,8 @@ class Council:
                     "topic": f'the client\'s question: "{self.topic}"'}[self.mode]
         prompt = (f"BRIEF\n{slim}\n\nCOSTS {json.dumps(self.brief.get('costs'), default=str)[:3500]}\n\n"
                   f"{self.client_notes()}VOTES\n{json.dumps(slim_votes, default=str)[:6000]}\n\nTALLY {json.dumps(tally)}"
-                  f"\n\nTASK: As chair, rule on {question}. You may overrule the tally if the reasoning behind it is "
+                  f"\n\nTASK: As chair, rule on {question}. For a stock pick the bar is beating the index by the horizon, not "
+                  f"reaching the long-run goal. You may overrule the tally if the reasoning behind it is "
                   f"weak, but say why. Name the dissent.\n{ask}")
         d = None
         if chair:
