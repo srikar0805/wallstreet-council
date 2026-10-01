@@ -67,7 +67,7 @@ CLAUDE_SEAT = {"name": "Claude", "model": "claude/opus", "role": "Devil's advoca
 
 SEATS_FILE = Path(os.environ.get("COUNCIL_SEATS", Path.home() / ".wallstreet-council" / "seats.json"))
 MODES = ("pick", "ipo", "topic")
-DEFAULT_BUDGET = {"US": 10.0, "IN": 1000.0, "BOTH": 10.0}
+DEFAULT_BUDGET = {"US": 100.0, "IN": 10000.0, "BOTH": 100.0}  # practice money; the goal is 10x
 
 BASE_RULES = """You sit on the Wall Street Council, a panel of AI analysts running a PAPER-TRADING SIMULATION.
 No real money moves. Your job is to argue well, not to sound confident.

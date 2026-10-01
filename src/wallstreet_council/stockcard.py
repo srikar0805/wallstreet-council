@@ -107,7 +107,8 @@ def cached_build(sym: str, max_age: int = 7200) -> dict:
 
 def build(sym: str, budget: float | None = None) -> dict:
     code = "IN" if sym.endswith((".NS", ".BO")) else "US"
-    budget = budget or (1000.0 if code == "IN" else 10.0)
+    from .council import DEFAULT_BUDGET
+    budget = budget or DEFAULT_BUDGET[code]
     snap = market.snapshot(sym)
     if snap.get("error"):
         return {"symbol": sym, "error": "no data"}

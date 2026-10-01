@@ -35,7 +35,7 @@ HOME = Path(os.environ.get("COUNCIL_HOME", Path.home() / ".wallstreet-council"))
 PID_FILE = HOME / "live.pid"
 LOG_FILE = HOME / "live.log"
 RATIONED = ("codex", "claude", "copilot")
-DEFAULT_SCHEDULE = "pick-US@09:05, pick-IN@09:20, ipo-IN@12:30/Mon"  # IPOs weekly: Rs 1,000 cannot buy a lot
+DEFAULT_SCHEDULE = "pick-US@09:05, pick-IN@09:20, ipo-IN@12:30/Mon"  # IPOs weekly; a lot rarely fits the budget
 
 FLOOR_RULES = """You are on the trading floor of the Wall Street Council, a PAPER-TRADING simulation covering US and
 Indian markets and IPOs. The floor is a running conversation between AI analysts between full council meetings.
@@ -47,8 +47,8 @@ Indian markets and IPOs. The floor is a running conversation between AI analysts
   actually buy and the latest Pick of the Day. Weigh routes (compounding, single stocks, intraday, options, penny
   stocks) with honest odds. IPOs are covered by the weekly IPO council; discuss them only if the client asks.
   Count broker charges, depository charges, transaction taxes and capital-gains tax (COSTS); name the account type.
-- Share price is no barrier in the US: zero-commission US brokers sell fractional shares, so $10 buys a slice of
-  any stock. NSE and BSE trade whole shares only, so a Rs ~960 stake can only buy stocks priced below that.
+- Share price is no barrier in the US: zero-commission US brokers sell fractional shares, so the US budget buys a
+  slice of any stock. NSE and BSE trade whole shares only, so the rupee budget only buys stocks priced below it.
 - Each round has a SPOTLIGHT stock with its full history. Say something specific about it when it is your turn.
 - Otherwise react to the latest tape, IPO figures and headlines, and to the previous speaker BY NAME: agree,
   push back, or add.
@@ -122,19 +122,22 @@ def _salvage(text: str) -> str:
 
 class Floor:
     def __init__(self, interval_open: int = 15, interval_closed: int = 60, schedule: str = DEFAULT_SCHEDULE,
-                 budget: float | None = None, speakers: int = 3, publish: bool | None = None, goal: float = 100.0):
+                 budget: float | None = None, speakers: int = 3, publish: bool | None = None, goal: float | None = None):
         self.interval_open, self.interval_closed = interval_open * 60, interval_closed * 60
         self.schedule = parse_schedule(schedule)
         self.budget, self.speakers, self.goal = budget, speakers, goal
         self.spot_queue: list[str] = []
         usd_inr = market.snapshot("USDINR=X").get("price") or 90.0
-        start = budget or 10.0
+        from .council import DEFAULT_BUDGET
+        start, start_in = budget or DEFAULT_BUDGET["US"], DEFAULT_BUDGET["IN"]
+        goal = goal or start * 10
+        self.budget_in = start_in
         self.goal_block = {
-            "client_goal": f"turn ${start:g} (about Rs {start * usd_inr:,.0f}) into ${goal:g} (about Rs {goal * usd_inr:,.0f})",
+            "client_goal": f"turn ${start:,.0f} into ${goal:,.0f} in the US, and Rs {start_in:,.0f} into Rs {start_in * goal / start:,.0f} in India",
             "goal_math": costs.goal_math(start, goal),
             "costs_us": costs.round_trip("US-zero-commission", start),
-            "costs_india_delivery": costs.round_trip("IN-delivery-zero-brokerage", start * usd_inr),
-            "costs_india_intraday": costs.round_trip("IN-intraday", start * usd_inr),
+            "costs_india_delivery": costs.round_trip("IN-delivery-zero-brokerage", start_in),
+            "costs_india_intraday": costs.round_trip("IN-intraday", start_in),
             "tax": costs.TAX,
         }
         bench = [s for s in load_seats() if s["model"].split("/")[0] not in RATIONED]
@@ -173,7 +176,7 @@ class Floor:
                 picks += [t for t in (v.get("decision"), v.get("backup_pick")) if t and t not in ("CASH", "NONE")]
             watch = [w.get("ticker") for w in (memory.floor_digest(floor_id()).get("watchlist") or [])
                      if isinstance(w, dict) and w.get("ticker")]
-            inr = (self.budget or 10.0) * (market.snapshot("USDINR=X").get("price") or 90.0)
+            inr = self.budget_in
             india = [m["symbol"] for m in movers if m["symbol"].endswith(".NS")] + market.MARKETS["IN"]["core"]
             india = [t for t in india if (market.snapshot(t).get("price") or 1e9) <= inr]
             us = [m["symbol"] for m in movers if not m["symbol"].endswith((".NS", ".BO"))] + market.MARKETS["US"]["core"]

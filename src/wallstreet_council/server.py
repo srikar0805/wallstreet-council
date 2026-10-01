@@ -46,7 +46,7 @@ def convene_council(mode: str = "pick", market: str = "US", topic: str | None = 
 
     mode: "pick" (which stock to buy), "ipo" (which IPOs to apply for, avoid or buy after listing), or "topic"
     (any question in `topic`). market: "US", "IN" (NSE/BSE), or "BOTH" (ipo and topic only).
-    budget: paper money, default $10 (US) or Rs 1000 (IN). target: goal amount, default 10x the budget.
+    budget: paper money, default $100 (US) or Rs 10,000 (IN). target: goal amount, default 10x the budget.
     tickers: extra symbols (NSE symbols end in .NS). rounds: cross-examination rounds (0 to 3).
     include_claude: seat Claude Opus through the local Claude Code CLI (uses the Max plan).
     A full council takes about 3 to 8 minutes.
@@ -131,8 +131,8 @@ def track_record() -> dict[str, Any]:
 
 @mcp.tool(annotations=WRITE, structured_output=True)
 def start_live(interval_open: int = 15, interval_closed: int = 60,
-               schedule: str = "pick-US@09:05, pick-IN@09:20, ipo-IN@12:30", budget: float = 10.0,
-               goal: float = 100.0, publish: bool = False) -> dict[str, Any]:
+               schedule: str = "pick-US@09:05, pick-IN@09:20, ipo-IN@12:30/Mon", budget: float = 100.0,
+               goal: float = 1000.0, publish: bool = False) -> dict[str, Any]:
     """Start the continuous trading floor in its own process: free-tier seats chat every `interval_open`
     minutes while either market is open (`interval_closed` otherwise) about both markets, IPOs, a rotating
     spotlight stock and the client's goal; full councils run on `schedule` (each time in that market's zone,

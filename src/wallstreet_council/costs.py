@@ -25,7 +25,7 @@ PROFILES: dict[str, dict] = {
         "exchange_txn_pct": 0.00297, "sebi_pct": 0.0001, "stamp_buy_pct": 0.015, "gst_pct": 18.0,
         "dp_charge_per_sell": 15.93,
         "notes": "DP (depository) charge is a flat fee per stock per day you sell, about Rs 13.5 + GST at many "
-                 "brokers; on a Rs 1,000 position it alone is about 1.6%.",
+                 "brokers; on Rs 10,000 it alone is about 0.16%, on Rs 1,000 about 1.6%.",
         "verify": ["https://zerodha.com/charges", "https://www.nseindia.com/"],
     },
     "IN-delivery-flat-20": {
@@ -48,7 +48,7 @@ PROFILES: dict[str, dict] = {
         "brokerage_pct": 0.0, "brokerage_cap": 0.0, "sec_fee_sell_pct": 0.00278, "finra_taf_per_share": 0.000166,
         "finra_taf_cap": 8.30,
         "notes": "The SEC fee on sales is reset every fiscal year; FINRA's trading activity fee is per share sold. "
-                 "On $10 both round to a cent or less. Payment for order flow means spreads are the hidden cost.",
+                 "On $100 both come to a cent or two. Payment for order flow means spreads are the hidden cost.",
         "verify": ["https://www.sec.gov/divisions/marketreg/sec-fee-rate", "https://www.finra.org/rules-guidance/"
                    "guidance/trading-activity-fee"],
     },

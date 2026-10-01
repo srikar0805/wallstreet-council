@@ -65,7 +65,7 @@ a{color:var(--accent)}
 <body>
 <div class="wrap">
   <h1>AI Stock Council</h1>
-  <p class="sub">Robot analysts choose one stock a day with <b>pretend money</b> ($10 in America, ₹1,000 in India). We keep score against the whole market.</p>
+  <p class="sub">Robot analysts choose one stock a day with <b>pretend money</b> ($100 in America, ₹10,000 in India). We keep score against the whole market.</p>
 
   <h2>Today's pick</h2>
   <div class="picks" id="picks"><div class="card muted">Loading…</div></div>
@@ -105,7 +105,7 @@ const short = sym => names[sym] || String(sym || "").replace(/\.(NS|BO)$/, "");
 
 function pickCard(m, p){
   const flag = m === "IN" ? "🇮🇳 India" : "🇺🇸 America";
-  const amt = money(p.budget || (m === "IN" ? 1000 : 10), m);
+  const amt = money(p.budget || (m === "IN" ? 10000 : 100), m);
   const buy = p.status === "BUY", sym = buy ? p.ticker : p.backup_pick;
   const reasons = (p.reasons || []).slice(0, 3);
   const head = buy ? `Buy ${esc(short(p.ticker))}` : "Wait for now";
@@ -146,7 +146,7 @@ function showStock(sym){
       <span class="px">${money(c.price, m)} ${pct(c.today_pct)} <span class="muted" style="font-size:14px">today</span></span></div>
     ${ch.dates ? chartSvg(ch) + `<div class="legend"><span><i style="background:${ch.year_change_pct >= 0 ? "var(--buy)" : "var(--bad)"}"></i>${esc(short(sym))} ${pct(ch.year_change_pct)}</span><span><i style="background:var(--index)"></i>whole market (${esc(ch.index_name)}) ${pct(ch.index_year_change_pct)}</span></div>` : ""}
     ${ib ? `<div class="callout">If you had put <b>${money(ib.amount, m)}</b> in a year ago, you would have <b>${money(ib.now, m)}</b> today. The whole market would have given ${money(ib.index_now, m)}.</div>` : ""}
-    ${m === "IN" && c.whole_shares_for_budget != null ? `<p class="muted" style="font-size:15px">With ₹1,000 you can buy ${c.whole_shares_for_budget} whole share${c.whole_shares_for_budget === 1 ? "" : "s"} (India sells whole shares only).</p>` : ""}
+    ${m === "IN" && c.whole_shares_for_budget != null ? `<p class="muted" style="font-size:15px">With ${money(ib ? ib.amount : 10000, "IN")} you can buy ${c.whole_shares_for_budget} whole share${c.whole_shares_for_budget === 1 ? "" : "s"} (India sells whole shares only).</p>` : ""}
     <div class="news"><div><h3>👍 Good news</h3>${news(nw.good, "Nothing new this week.")}</div><div><h3>👎 Bad news</h3>${news(nw.bad, "Nothing new this week.")}</div></div>
     <h3 style="font-size:17px;margin:14px 0 4px">Its story</h3>
     <div class="facts">
