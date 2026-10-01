@@ -85,7 +85,15 @@ def build(out: Path = SITE) -> dict:
     if floor:
         from . import memory
         try:
-            plain = memory.plain_summary(floor["id"])
+            from .council import DEFAULT_BUDGET
+            facts = [f"Practice money: ${DEFAULT_BUDGET['US']:,.0f} in the US and Rs {DEFAULT_BUDGET['IN']:,.0f} in India."]
+            for mkt, p in picks_of_the_day(sessions).items():
+                nm = lambda t: str(t or "").split(".")[0]  # noqa: E731
+                where = "America" if mkt == "US" else "India"
+                what = (f"buy {nm(p['ticker'])}" if p["status"] == "BUY"
+                        else f"wait for now (if buying anyway, their favourite is {nm(p['backup_pick'])})")
+                facts.append(f"Today's pick in {where}: {what}. Reason: {p['one_line']}")
+            plain = memory.plain_summary(floor["id"], context="\n".join(facts))
         except Exception:  # noqa: BLE001
             plain = {}
         (out / "data" / "plain.json").write_text(json.dumps(plain))
