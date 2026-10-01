@@ -52,7 +52,7 @@ a{color:var(--accent)}
   <h2>What they decided</h2>
   <div id="decisions"><p class="empty">No decisions yet.</p></div>
 
-  <h2>What they are saying right now</h2>
+  <h2>What they are talking about, in plain words</h2>
   <div id="chat"><p class="empty">Nothing yet today.</p></div>
 
   <div class="foot">
@@ -117,16 +117,9 @@ async function load(){
   $("#decisions").innerHTML = rows.join("") || `<p class="empty">No decisions yet.</p>`;
   $("#s-better").textContent = better; $("#s-worse").textContent = worse; $("#s-wait").textContent = wait;
 
-  const floor = ss.find(s => s.id.startsWith("floor-"));
-  if (floor) {
-    const evs = (await get(`data/events/${floor.id}.json`)) || [];
-    const chat = evs.filter(e => e.kind === "chat" || e.kind === "user").slice(-5).reverse();
-    if (chat.length) $("#chat").innerHTML = chat.map(e => {
-      const you = e.kind === "user";
-      const who = you ? "Srikar" : e.speaker, role = you ? "asked" : (ROLE[e.speaker] || "analyst");
-      return `<div class="card chat"><span class="who">${esc(who)}</span> <span class="role">· ${esc(role)} · ${ago(e.ts)}</span><p>${esc(you ? e.text : firstSentences(e.text))}</p></div>`;
-    }).join("");
-  }
+  const plain = await get("data/plain.json");
+  if (plain && plain.summary) $("#chat").innerHTML = `<div class="card chat"><p style="margin:0">${esc(plain.summary)}</p>
+    <p class="note" style="margin-top:10px">Summarised in plain words ${ago(plain.ts)}. <a href="details.html">Read their exact words</a>.</p></div>`;
 }
 load(); setInterval(load, 120000);
 </script>
