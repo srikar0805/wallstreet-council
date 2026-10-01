@@ -164,7 +164,8 @@ async function load(){
   const [picks, stocks, track, plain, budget] = await Promise.all([get("data/picks.json"), get("data/stocks.json"),
     get("data/track.json"), get("data/plain.json"), get("data/budget.json")]);
   if (budget && budget.published_at) $("#updated").textContent = new Date(budget.published_at * 1000).toLocaleString();
-  const tidy = n => (n === n.toUpperCase() ? n.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : n)
+  const ACRO = /^(HDFC|ICICI|SBI|ITC|TCS|LIC|NTPC|ONGC|IRCTC|BHEL|GAIL|IRFC|HCL|UPL|DLF|MRF|ACC|IT|AI|USA|US)$/;
+  const tidy = n => (n === n.toUpperCase() ? n.split(" ").map(w => ACRO.test(w) ? w : w.charAt(0) + w.slice(1).toLowerCase()).join(" ") : n)
     .replace(/,? (Inc\.?|Corporation|Corp\.?|Limited|Ltd\.?|Holdings?|Company)$/i, "");
   (stocks || []).forEach(s => names[s.symbol] = tidy(s.name));
   const loaded = await Promise.all((stocks || []).map(s => get(`data/stocks/${s.symbol}.json`)));
