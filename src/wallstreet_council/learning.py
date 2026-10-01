@@ -48,10 +48,13 @@ def _conn():
 def record_calls(sid: str, market_code: str, horizon_end: str, votes: dict[str, dict], ruling: dict,
                  chair_name: str, prices: dict[str, float]) -> None:
     bench = BENCH.get(market_code, "^GSPC")
-    try:
-        bench_px = market.price_now(bench)
-    except Exception:  # noqa: BLE001
-        bench_px = None
+    bench_px = None
+    for _ in range(3):  # a call without its benchmark price can never be graded, so retry before giving up
+        try:
+            bench_px = market.price_now(bench)
+            break
+        except Exception:  # noqa: BLE001
+            time.sleep(3)
     rows = []
     for seat, v in votes.items():
         rows.append((seat, v.get("_model", ""), "vote", v.get("vote"), v.get("confidence"), v.get("reason", "")))

@@ -137,3 +137,25 @@ def seed(facts: dict) -> dict:
         profile[k] = list(dict.fromkeys(profile.get(k, []) + v))
     _put("client_profile", profile, upto)
     return profile
+
+
+def plain_summary(sid: str, max_age: int = 3600) -> dict:
+    """Three short sentences a non-investor understands, about what the floor is discussing. Cached hourly."""
+    cached, _ = _get(f"plain:{sid}")
+    if cached and time.time() - cached.get("ts", 0) < max_age:
+        return cached
+    evs = [e for e in store.last_events(sid, 40) if e["kind"] in ("chat", "user", "ruling")]
+    if not evs:
+        return cached or {}
+    convo = "\n".join(f"{'CLIENT' if e['kind'] == 'user' else e['speaker']}: {e['text'][:600]}" for e in evs)[-16000:]
+    d = _ask("You explain finance to someone's parent who has never traded. JSON only.",
+             f"CONVERSATION\n{convo}\n\nTASK: Summarise what these analysts are discussing right now for a reader "
+             "who does not know finance. At most 3 short sentences, everyday words, no jargon or abbreviations (no "
+             "RSI, CAGR, STCG, GMP, beta, drawdown), name companies in full, include at most one number per sentence, "
+             "and end with what they think the client should do with the small practice amount. Only facts from "
+             'the conversation.\nJSON: {"summary": ""}')
+    if d and d.get("summary"):
+        out = {"summary": d["summary"], "ts": time.time()}
+        _put(f"plain:{sid}", out, evs[-1]["seq"])
+        return out
+    return cached or {}

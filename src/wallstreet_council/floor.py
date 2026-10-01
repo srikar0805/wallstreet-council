@@ -106,6 +106,18 @@ def tape() -> dict:
             "movers": movers, "india_ipos_open": ipo_live, "news": news}
 
 
+def _salvage(text: str) -> str:
+    """A reply cut off mid-JSON still carries its message; never show raw JSON to a reader."""
+    import re
+    m = re.search(r'"message"\s*:\s*"((?:[^"\\]|\\.)*)', text, re.S)
+    msg = m.group(1).replace('\\"', '"').replace("\\n", " ") if m else text
+    msg = msg.strip()
+    if len(msg) > 900 or (m and not text.rstrip().endswith("}")):
+        cut = max(msg[:900].rfind(". "), msg[:900].rfind("? "))
+        msg = msg[:cut + 1] if cut > 200 else msg[:900] + "…"
+    return msg
+
+
 class Floor:
     def __init__(self, interval_open: int = 15, interval_closed: int = 60, schedule: str = DEFAULT_SCHEDULE,
                  budget: float | None = None, speakers: int = 3, publish: bool | None = None, goal: float = 100.0):
@@ -231,7 +243,7 @@ class Floor:
                 except llm.LLMError:
                     continue
                 d = llm.parse_json(r["text"])
-                d = d if isinstance(d, dict) and d.get("message") else {"message": r["text"][:800]}
+                d = d if isinstance(d, dict) and d.get("message") else {"message": _salvage(r["text"])}
                 store.add_event(sid, "floor", seat["name"], "chat", d["message"], model, d)
                 break
             if self.stop:
@@ -250,7 +262,10 @@ class Floor:
     def run_council(self, e: dict) -> None:
         self.ran.add(e["run_key"])
         sid = self.ensure_session()
-        c = Council(budget=self.budget, rounds=1, mode=e["mode"], market_code=e["market"])
+        # A month-end horizon is days away late in a month, which grades noise; scheduled councils judge to
+        # the end of next month instead.
+        c = Council(budget=self.budget, rounds=1, mode=e["mode"], market_code=e["market"],
+                    horizon="end of next month")
         store.add_event(sid, "floor", "Moderator", "status",
                         f"Full council convened: {e['mode']} {e['market']} ({e['key']}), session {c.id}. "
                         f"Codex rulings left today: {llm.budget_left('codex')}.")

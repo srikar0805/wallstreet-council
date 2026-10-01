@@ -61,8 +61,10 @@ def _slim(e: dict, show_client: bool) -> dict | None:
 def build(out: Path = SITE) -> dict:
     show_client = os.environ.get("COUNCIL_PUBLISH_CLIENT", "1") != "0"
     (out / "data" / "events").mkdir(parents=True, exist_ok=True)
-    page = resources.files("wallstreet_council").joinpath("monitor.html").read_text()
-    (out / "index.html").write_text(page.replace("/*STATIC*/false", "true"))
+    pkg = resources.files("wallstreet_council")
+    # Front page: plain language for someone who is not a trader. Full monitor one click away.
+    (out / "index.html").write_text(pkg.joinpath("simple.html").read_text())
+    (out / "details.html").write_text(pkg.joinpath("monitor.html").read_text().replace("/*STATIC*/false", "true"))
     (out / ".nojekyll").write_text("")
     sessions = store.sessions(60)
     keep = set()
@@ -79,6 +81,14 @@ def build(out: Path = SITE) -> dict:
         for s in pub:
             s["topic"] = None
     (out / "data" / "sessions.json").write_text(json.dumps(pub, default=str))
+    floor = next((s for s in sessions if s["id"].startswith("floor-")), None)
+    if floor:
+        from . import memory
+        try:
+            plain = memory.plain_summary(floor["id"])
+        except Exception:  # noqa: BLE001
+            plain = {}
+        (out / "data" / "plain.json").write_text(json.dumps(plain))
     learning.grade()
     track = learning.track_record()
     (out / "data" / "track.json").write_text(json.dumps(track, default=str))

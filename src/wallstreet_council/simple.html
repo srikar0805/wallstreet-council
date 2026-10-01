@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Stock Council</title>
+<meta name="description" content="Eight AI models practise stock picking with pretend money, in public, so anyone can check whether they are any good.">
+<style>
+:root{--bg:#f7f6f2;--card:#ffffff;--text:#1d1d1f;--muted:#6b6b70;--line:#e6e4dd;--good:#1a7f4b;--good-bg:#e8f5ee;--bad:#b42318;--bad-bg:#fdecea;--wait:#8a6d1d;--wait-bg:#fbf3dc;--accent:#2d5bd7}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#111214;--card:#1b1c1f;--text:#ececee;--muted:#9a9aa1;--line:#2a2b2f;--good:#4cc38a;--good-bg:#15291f;--bad:#ff8577;--bad-bg:#2e1714;--wait:#e2c46b;--wait-bg:#2b2412;--accent:#8fb0ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:18px/1.55 -apple-system,"Segoe UI",system-ui,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:30px;margin:0 0 6px;letter-spacing:-.3px}
+.lead{color:var(--muted);margin:0 0 26px;font-size:18px}
+h2{font-size:21px;margin:34px 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:12px 0}
+.score{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center}
+.score div{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 8px}
+.score b{display:block;font-size:34px;line-height:1.1}
+.score span{color:var(--muted);font-size:15px}
+.good{color:var(--good)}.bad{color:var(--bad)}.wait{color:var(--wait)}
+.row{display:flex;gap:14px;align-items:flex-start}
+.badge{flex:0 0 auto;font-size:14px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.badge.good{background:var(--good-bg)}.badge.bad{background:var(--bad-bg)}.badge.wait{background:var(--wait-bg)}
+.when{color:var(--muted);font-size:15px}
+.what{font-size:18px}
+.compare{color:var(--muted);font-size:16px;margin-top:4px}
+.chat .who{font-weight:600}
+.chat .role{color:var(--muted);font-weight:400}
+.chat p{margin:4px 0 0}
+.note{color:var(--muted);font-size:15px}
+a{color:var(--accent)}
+.foot{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:15px}
+.empty{color:var(--muted)}
+@media (max-width:520px){body{font-size:17px}h1{font-size:26px}.score b{font-size:28px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AI Stock Council</h1>
+  <p class="lead">Eight AI models from Google, NVIDIA and OpenAI debate stocks every day. They practise with <b>pretend money</b>: $10 in the US market and ₹1,000 in India. Each choice is compared with simply buying the whole market, so we can see whether they are any good before anyone trusts them with real money.</p>
+
+  <h2>Their score so far</h2>
+  <div class="score">
+    <div><b class="good" id="s-better">0</b><span>did better than the market</span></div>
+    <div><b class="bad" id="s-worse">0</b><span>did worse than the market</span></div>
+    <div><b class="wait" id="s-wait">0</b><span>too early to judge</span></div>
+  </div>
+  <p class="note" id="s-note">"The market" means the S&amp;P 500 for US decisions and the Nifty 50 for Indian ones. A choice needs at least a week before the result means anything.</p>
+
+  <h2>What they decided</h2>
+  <div id="decisions"><p class="empty">No decisions yet.</p></div>
+
+  <h2>What they are talking about, in plain words</h2>
+  <div id="chat"><p class="empty">Nothing yet today.</p></div>
+
+  <div class="foot">
+    <p><b>Nothing here is real trading.</b> No money is spent and no order goes to any broker. These are AI opinions, not financial advice.</p>
+    <p><b>Why the results can be trusted:</b> every decision is saved publicly, with the time and the price, before anyone knows how it turns out. The saved history cannot be quietly changed afterwards.</p>
+    <p>Updated <span id="updated">recently</span>. <a href="details.html">See the full debate and every detail</a>.</p>
+  </div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const get = u => fetch(u + "?t=" + Date.now(), {cache: "no-store"}).then(r => r.ok ? r.json() : null).catch(() => null);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ROLE = {"Gemini":"economy expert","Nemotron Super":"chart reader","Kimi K3":"company finances","GPT-OSS":"news reader",
+  "Nemotron Ultra":"risk checker","Muse":"trends and sports","GLM":"contrarian","Codex":"chair","Claude":"devil's advocate"};
+const NAMES = {GOOGL:"Google",AAPL:"Apple",MSFT:"Microsoft",NVDA:"NVIDIA",AMZN:"Amazon",META:"Meta",TSLA:"Tesla",AMD:"AMD",
+  NFLX:"Netflix","RELIANCE.NS":"Reliance","HDFCBANK.NS":"HDFC Bank","ICICIBANK.NS":"ICICI Bank","TCS.NS":"TCS","INFY.NS":"Infosys",
+  "SBIN.NS":"SBI","ITC.NS":"ITC","CUB.NS":"City Union Bank","TITAN.NS":"Titan","MARUTI.NS":"Maruti Suzuki"};
+const nm = t => NAMES[t] || String(t || "").replace(/\.(NS|BO)$/, "");
+const money = (v, m) => (m === "IN" ? "₹" : "$") + Number(v).toLocaleString(m === "IN" ? "en-IN" : "en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const sign = x => (x > 0 ? "+" : "") + x.toFixed(1) + "%";
+const day = ts => new Date(ts * 1000).toLocaleDateString([], {month: "short", day: "numeric", year: "numeric"});
+const ago = ts => { const m = Math.round((Date.now() / 1000 - ts) / 60); return m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : day(ts); };
+const firstSentences = (t, n = 2) => { const parts = String(t).split(/(?<=[.!?])\s+/); return parts.slice(0, n).join(" ") + (parts.length > n ? " …" : ""); };
+const MIN_DAYS = 7;
+
+async function load(){
+  const [sessions, track, budget] = await Promise.all([get("data/sessions.json"), get("data/track.json"), get("data/budget.json")]);
+  if (budget && budget.published_at) $("#updated").textContent = new Date(budget.published_at * 1000).toLocaleString();
+  const ss = sessions || [];
+  const byId = Object.fromEntries(ss.map(s => [s.id, s]));
+  const graded = {}; ((track && track.rulings) || []).forEach(r => graded[r.session] = r);
+
+  let better = 0, worse = 0, wait = 0;
+  const rows = ss.filter(s => s.verdict && !s.id.startsWith("floor-")).slice(0, 15).map(s => {
+    const v = s.verdict, mode = s.mode || "pick", m = s.market || "US", g = graded[s.id];
+    if (mode === "ipo") {
+      const calls = (v.rulings || []).map(r => `${esc(r.ipo)}: ${esc(String(r.call).toLowerCase().replace(/_/g, " "))}`).join(", ");
+      return `<div class="card"><div class="when">${day(s.created)} · India · new share sales (IPOs)</div>
+        <div class="what">${v.decision === "NONE" || !v.decision ? "Decided not to apply for any IPO." : "Best idea: <b>" + esc(v.decision) + "</b>"}</div>
+        ${calls ? `<div class="compare">${calls}</div>` : ""}</div>`;
+    }
+    if (mode === "topic") {
+      return `<div class="card"><div class="when">${day(s.created)} · a question</div>
+        <div class="what">${esc(s.topic || "")}</div><div class="compare">Their answer: <b>${esc(v.decision)}</b></div></div>`;
+    }
+    const budgetAmt = s.budget || (m === "IN" ? 1000 : 10);
+    const idx = m === "IN" ? "Nifty 50" : "S&P 500";
+    const cash = v.decision === "CASH";
+    const what = cash ? `Bought nothing. Kept the ${money(budgetAmt, m)} as cash.` : `Bought <b>${esc(nm(v.decision))}</b> with ${money(budgetAmt, m)}.`;
+    let badge = `<span class="badge wait">too early</span>`, compare = "";
+    if (g && g.excess_pct != null && g.bench_ret_pct != null) {
+      const ours = budgetAmt * (1 + (g.ret_pct || 0) / 100), theirs = budgetAmt * (1 + g.bench_ret_pct / 100);
+      const daysOld = (Date.now() / 1000 - s.created) / 86400;
+      compare = `Now worth <b>${money(ours, m)}</b>. Buying the whole market (${idx}) instead would be ${money(theirs, m)}.`;
+      if (daysOld < MIN_DAYS || Math.abs(g.excess_pct) < 0.05) { wait++; }
+      else if (g.excess_pct > 0) { better++; badge = `<span class="badge good">better than market</span>`; }
+      else { worse++; badge = `<span class="badge bad">worse than market</span>`; }
+    } else { wait++; }
+    return `<div class="card"><div class="row"><div style="flex:1"><div class="when">${day(s.created)} · ${m === "IN" ? "India" : "US"}</div>
+      <div class="what">${what}</div>${compare ? `<div class="compare">${compare}</div>` : ""}</div>${badge}</div></div>`;
+  });
+  $("#decisions").innerHTML = rows.join("") || `<p class="empty">No decisions yet.</p>`;
+  $("#s-better").textContent = better; $("#s-worse").textContent = worse; $("#s-wait").textContent = wait;
+
+  const plain = await get("data/plain.json");
+  if (plain && plain.summary) $("#chat").innerHTML = `<div class="card chat"><p style="margin:0">${esc(plain.summary)}</p>
+    <p class="note" style="margin-top:10px">Summarised in plain words ${ago(plain.ts)}. <a href="details.html">Read their exact words</a>.</p></div>`;
+}
+load(); setInterval(load, 120000);
+</script>
+</body>
+</html>
