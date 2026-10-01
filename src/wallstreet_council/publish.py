@@ -89,6 +89,21 @@ def build(out: Path = SITE) -> dict:
         except Exception:  # noqa: BLE001
             plain = {}
         (out / "data" / "plain.json").write_text(json.dumps(plain))
+    picks = picks_of_the_day(sessions)
+    (out / "data" / "picks.json").write_text(json.dumps(picks, default=str))
+    # Stock cards for the picks and watchlist only, built in parallel and cached for two hours.
+    from concurrent.futures import ThreadPoolExecutor
+    from . import stockcard
+    (out / "data" / "stocks").mkdir(parents=True, exist_ok=True)
+    # Today's picks and backup picks always get a card, then the watchlist, six stocks at most.
+    first = [x for p in picks.values() for x in (p.get("ticker"), p.get("backup_pick")) if x]
+    syms = list(dict.fromkeys(first + stockcard.tickers_to_show(sessions)))[:6]
+    with ThreadPoolExecutor(4) as ex:
+        cards = [c for c in ex.map(stockcard.cached_build, syms) if not c.get("error")]
+    for c in cards:
+        (out / "data" / "stocks" / f"{c['symbol']}.json").write_text(stockcard.dump(c))
+    (out / "data" / "stocks.json").write_text(json.dumps([{"symbol": c["symbol"], "name": c["name"], "market": c["market"]}
+                                                          for c in cards]))
     learning.grade()
     track = learning.track_record()
     (out / "data" / "track.json").write_text(json.dumps(track, default=str))
@@ -109,3 +124,27 @@ def publish() -> str:
     _git("commit", "-q", "-m", f"Snapshot {stamp}: {info['sessions']} sessions, {info['graded_rulings']} graded rulings")
     _git("push", "-q", "origin", "HEAD:gh-pages")
     return f"published {stamp}"
+
+
+def picks_of_the_day(sessions: list[dict]) -> dict:
+    """The latest stock-pick ruling per market, shaped for the front page. Older rulings that predate the plain
+    fields fall back to their first sentence and the best-voted stock as the backup pick."""
+    import re
+    pos = {p["session"]: p for p in scoreboard.portfolio()["positions"]}
+    out = {}
+    for s in sessions:
+        v = s.get("verdict") or {}
+        mode, mkt = s.get("mode") or "pick", s.get("market") or "US"
+        if mode != "pick" or mkt in out or not v:
+            continue
+        buy = v.get("decision") not in (None, "CASH", "NONE")
+        backup = v.get("backup_pick") or next((k for k in (v.get("tally") or {}) if k not in ("CASH",)), None)
+        first = re.split(r"(?<=[.!?])\s+", str(v.get("why") or ""))[0]
+        p = pos.get(s["id"])
+        out[mkt] = {"session": s["id"], "created": s["created"], "budget": s.get("budget"), "horizon": s.get("horizon"),
+                    "status": "BUY" if buy else "WAIT", "ticker": v.get("decision") if buy else None,
+                    "backup_pick": None if buy else backup, "one_line": v.get("one_line") or first,
+                    "reasons": v.get("plain_reasons") or [], "good_news": v.get("good_news") or [],
+                    "bad_news": v.get("bad_news") or [], "confidence": v.get("confidence"),
+                    "paper": {"invested": p["dollars"], "now": p["value_now"], "pnl_pct": p["pnl_pct"]} if p else None}
+    return out

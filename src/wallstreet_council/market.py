@@ -102,9 +102,11 @@ def snapshot(symbol: str) -> dict:
         h = yf.Ticker(symbol).history(period="1y", auto_adjust=True)
     except Exception:  # noqa: BLE001
         h = None
+    if h is not None and not h.empty:
+        h = h.dropna(subset=["Close"])  # Yahoo sometimes appends an empty bar for the current session
     if h is None or h.empty:
         return {"symbol": symbol, "error": "no history"}
-    c, v = h["Close"], h["Volume"]
+    c, v = h["Close"], h["Volume"].fillna(0)
     last = float(c.iloc[-1])
     rets = c.pct_change().dropna()
     vol20 = float(rets.tail(20).std() * math.sqrt(252) * 100) if len(rets) > 20 else None
@@ -244,12 +246,23 @@ def build_brief(extra: list[str] | None = None, progress=None, code: str = "US",
     if not m["fractional"] and budget:
         for c in cands:  # NSE and BSE trade whole shares only
             c["whole_shares_affordable"] = int(budget // c["price"]) if c.get("price") else 0
+        dropped = [c["symbol"] for c in cands if not c["whole_shares_affordable"]]
+        cands = [c for c in cands if c["whole_shares_affordable"]]
+        if dropped:
+            say(f"Shortlist: dropped {len(dropped)} stocks the budget cannot buy a single share of")
 
     say("Scanning macro, policy, geopolitics and sports-business headlines")
     with ThreadPoolExecutor(10) as ex:
         macro = dict(zip(m["macro"], ex.map(lambda q: headlines(q, 5, edition=m["news_edition"]), m["macro"])))
         sports = dict(zip(m["sports"], ex.map(lambda q: headlines(q, 4, edition=m["news_edition"]), m["sports"])))
 
+    # Sports and culture headlines stay only when they mention a shortlisted company.
+    keys = {c["symbol"].split(".")[0].lower() for c in cands} | {
+        str(c.get("fundamentals", {}).get("shortName", "")).split(" ")[0].lower() for c in cands}
+    keys.discard("")
+    sports = {q: [h for h in hs if any(k in h["title"].lower() for k in keys if len(k) > 2)]
+              for q, hs in sports.items()}
+    sports = {q: hs for q, hs in sports.items() if hs}
     return {"clock": market_clock(code), "regime": regime, "sectors": sectors,
             "macro_news": macro, "sports_news": sports, "candidates": cands}
 

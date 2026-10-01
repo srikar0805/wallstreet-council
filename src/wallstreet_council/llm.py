@@ -5,12 +5,14 @@ Providers:
   gemini/<model>   Google AI Studio, key from env GEMINI_API_KEY or keychain `gemini-api-key`
   codex/<model>    the local Codex CLI signed in through ChatGPT (no API key, OPENAI_API_KEY is stripped)
   claude/<model>   the local Claude Code CLI signed in through claude.ai (ANTHROPIC_API_KEY is stripped)
+  copilot/<model>  the local GitHub Copilot CLI signed in through GitHub (tools denied, low reasoning effort)
 
 Keys are never written to disk or logged.
 
 Subscription seats (Codex on the ChatGPT plan, Claude on the Max plan) are rationed per US Eastern day:
   COUNCIL_CODEX_DAILY   default 2 calls   (one chair ruling per full council, two councils a day)
   COUNCIL_CLAUDE_DAILY  default 2 calls   (Claude sits only when a council explicitly seats it)
+  COUNCIL_COPILOT_DAILY default 2 calls   (GitHub Copilot CLI, signed in through GitHub; judges Indian councils)
 When the ration is spent, chat() raises BudgetSpent and the seat's fallback model takes over.
 """
 from __future__ import annotations
@@ -49,7 +51,7 @@ class BudgetSpent(LLMError):
 
 
 def daily_budget(provider: str) -> int:
-    default = {"codex": "2", "claude": "2"}.get(provider)
+    default = {"codex": "2", "claude": "2", "copilot": "2"}.get(provider)
     if default is None:
         return 10**9
     return int(os.environ.get(f"COUNCIL_{provider.upper()}_DAILY", default))
@@ -161,6 +163,24 @@ def _codex(model: str, system: str, user: str, timeout: int) -> str:
         raise LLMError(f"codex exit {p.returncode}: {(p.stderr or p.stdout)[-300:]}")
 
 
+COPILOT_CANDIDATES = [os.environ.get("COPILOT_BIN", ""), shutil.which("copilot") or "", "/opt/homebrew/bin/copilot"]
+
+
+def _copilot(model: str, system: str, user: str, timeout: int) -> str:
+    exe = _bin(COPILOT_CANDIDATES)
+    if not exe:
+        raise LLMError("GitHub Copilot CLI not found (npm install -g @github/copilot)")
+    cmd = [exe, "-p", f"{system}\n\n{user}\n\nAnswer directly. Do not use any tools.", "-s", "--no-color",
+           "--deny-tool", "shell", "--deny-tool", "write"]
+    if model and model not in ("default", "auto"):  # Copilot's automatic model choice rejects an effort setting
+        cmd += ["--model", model, "--reasoning-effort", os.environ.get("COUNCIL_COPILOT_EFFORT", "low")]
+    with tempfile.TemporaryDirectory() as tmp:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL, cwd=tmp)
+    if p.returncode == 0 and p.stdout.strip():
+        return p.stdout
+    raise LLMError(f"copilot exit {p.returncode}: {(p.stderr or p.stdout)[-300:]}")
+
+
 def _claude(model: str, system: str, user: str, timeout: int) -> str:
     exe = _bin(CLAUDE_CANDIDATES)
     if not exe:
@@ -189,12 +209,12 @@ def chat(model: str, system: str, user: str, *, max_tokens: int = 1800, temperat
                 if attempt == 2 or not re.search(r"HTTP (429|500|502|503|504)", str(e)):
                     raise
                 time.sleep(4 * (attempt + 1))
-    elif provider in ("codex", "claude"):
+    elif provider in ("codex", "claude", "copilot"):
         from . import store
         if budget_left(provider) <= 0 and not allow_over_budget:
             raise BudgetSpent(f"{provider} daily ration of {daily_budget(provider)} calls is spent")
         try:
-            text = (_codex if provider == "codex" else _claude)(name, system, user, timeout)
+            text = {"codex": _codex, "claude": _claude, "copilot": _copilot}[provider](name, system, user, timeout)
         except Exception:
             store.record_usage(provider, model, False)
             raise

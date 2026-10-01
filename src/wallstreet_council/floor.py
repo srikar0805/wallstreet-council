@@ -34,8 +34,8 @@ from .council import Council, load_seats
 HOME = Path(os.environ.get("COUNCIL_HOME", Path.home() / ".wallstreet-council"))
 PID_FILE = HOME / "live.pid"
 LOG_FILE = HOME / "live.log"
-RATIONED = ("codex", "claude")
-DEFAULT_SCHEDULE = "pick-US@09:05, pick-IN@09:20, ipo-IN@12:30"
+RATIONED = ("codex", "claude", "copilot")
+DEFAULT_SCHEDULE = "pick-US@09:05, pick-IN@09:20, ipo-IN@12:30/Mon"  # IPOs weekly: Rs 1,000 cannot buy a lot
 
 FLOOR_RULES = """You are on the trading floor of the Wall Street Council, a PAPER-TRADING simulation covering US and
 Indian markets and IPOs. The floor is a running conversation between AI analysts between full council meetings.
@@ -43,8 +43,9 @@ Indian markets and IPOs. The floor is a running conversation between AI analysts
   the client has ever told us; use it. If it lists open_questions, make sure each gets a real answer over the
   next rounds.
 - TODAY SO FAR is the digest of this floor's conversation: build on it, do not repeat it.
-- Keep the client's GOAL in view: turning a small stake into ten times as much. Debate every route (compounding,
-  single stocks, IPO applications and what happens if allotted, intraday, options, penny stocks) with honest odds.
+- Keep the client's GOAL in view: turning a small stake into ten times as much. Stay on stocks the client can
+  actually buy and the latest Pick of the Day. Weigh routes (compounding, single stocks, intraday, options, penny
+  stocks) with honest odds. IPOs are covered by the weekly IPO council; discuss them only if the client asks.
   Count broker charges, depository charges, transaction taxes and capital-gains tax (COSTS); name the account type.
 - Share price is no barrier in the US: zero-commission US brokers sell fractional shares, so $10 buys a slice of
   any stock. NSE and BSE trade whole shares only, so a Rs ~960 stake can only buy stocks priced below that.
@@ -61,13 +62,19 @@ def floor_id() -> str:
 
 
 def parse_schedule(spec: str) -> list[dict]:
-    """'pick-US@09:05, ipo-IN@12:30' -> [{mode, market, hh, mm}]. Times are in that market's own zone."""
+    """'pick-US@09:05, ipo-IN@12:30/Mon' -> [{mode, market, hh, mm[, days]}]. Times are in that market's own zone;
+    an optional /Mon,Thu suffix limits the weekdays."""
+    names = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
     out = []
-    for item in [x.strip() for x in spec.split(",") if x.strip()]:
+    for item in [x.strip() for x in spec.split(",") if "@" in x]:
         what, _, at = item.partition("@")
+        at, _, days = at.partition("/")
         mode, _, code = what.partition("-")
         h, m = map(int, at.split(":"))
-        out.append({"mode": mode.lower(), "market": (code or "US").upper(), "hh": h, "mm": m, "key": item})
+        e = {"mode": mode.lower(), "market": (code or "US").upper(), "hh": h, "mm": m, "key": item}
+        if days:
+            e["days"] = [names.index(d.strip().lower()[:3]) for d in days.split("+") if d.strip()]
+        out.append(e)
     return out
 
 
@@ -92,15 +99,10 @@ def tape() -> dict:
             d = market.snapshot(s)
             if not d.get("error"):
                 movers.append({k: d.get(k) for k in ("symbol", "price", "chg_1d", "chg_5d", "rsi14", "volume_vs_20d")})
-    try:
-        ipo_live = [{k: x.get(k) for k in ("company", "series", "price_band", "closes", "subscribed_times")}
-                    for x in ipo_desk.india().get("open_now", [])]
-    except Exception:  # noqa: BLE001
-        ipo_live = []
+    ipo_live: list = []  # IPOs belong to the weekly IPO council now
     news = []
     for q, ed in (("stock market today", "US"), ("Sensex Nifty today", "IN"), ("Federal Reserve", "US"),
-                  ("RBI FII flows", "IN"), ("IPO subscription GMP today", "IN"), ("IPO debut this week", "US"),
-                  ("IPL cricket sports business stocks", "IN"), ("earnings results today", "US")):
+                  ("RBI FII flows", "IN"), ("earnings results today", "US"), ("Nifty stocks results today", "IN")):
         news += [{**h, "edition": ed} for h in market.headlines(q, n=4, window="6h", edition=ed)]
     return {"clock_us": market.market_clock("US"), "clock_in": market.market_clock("IN"), "regime": regime,
             "movers": movers, "india_ipos_open": ipo_live, "news": news}
@@ -163,8 +165,19 @@ class Floor:
         named = [w for w in re.findall(r"\b[A-Z][A-Z&]{1,11}\b", client_text)
                  if w not in {"IPO", "GMP", "RBI", "SEBI", "US", "USD", "INR", "NSE", "BSE", "ETF", "SME", "FII"}]
         if not self.spot_queue:
-            self.spot_queue = list(dict.fromkeys([m["symbol"] for m in movers] + market.MARKETS["US"]["core"]
-                                                 + market.MARKETS["IN"]["core"]))
+            # Only names the budget can actually buy: rulings and backup picks, the floor's watchlist, US movers
+            # and core names (fractional shares), and Indian names priced under the rupee budget.
+            picks = []
+            for sess in store.sessions(20):
+                v = sess.get("verdict") or {}
+                picks += [t for t in (v.get("decision"), v.get("backup_pick")) if t and t not in ("CASH", "NONE")]
+            watch = [w.get("ticker") for w in (memory.floor_digest(floor_id()).get("watchlist") or [])
+                     if isinstance(w, dict) and w.get("ticker")]
+            inr = (self.budget or 10.0) * (market.snapshot("USDINR=X").get("price") or 90.0)
+            india = [m["symbol"] for m in movers if m["symbol"].endswith(".NS")] + market.MARKETS["IN"]["core"]
+            india = [t for t in india if (market.snapshot(t).get("price") or 1e9) <= inr]
+            us = [m["symbol"] for m in movers if not m["symbol"].endswith((".NS", ".BO"))] + market.MARKETS["US"]["core"]
+            self.spot_queue = list(dict.fromkeys(picks + watch + us + india))
         for w in reversed(named):
             for sym in (w, f"{w}.NS"):
                 if not market.snapshot(sym).get("error"):
@@ -255,7 +268,8 @@ class Floor:
             now = datetime.now(market.mkt(e["market"] if e["market"] != "BOTH" else "US")["tz"])
             key = f"{now:%Y-%m-%d} {e['key']}"
             mins = (now.hour * 60 + now.minute) - (e["hh"] * 60 + e["mm"])
-            if now.weekday() < 5 and 0 <= mins < 30 and key not in self.ran:
+            if now.weekday() < 5 and 0 <= mins < 30 and key not in self.ran \
+                    and now.weekday() in e.get("days", range(7)):
                 return {**e, "run_key": key}
         return None
 

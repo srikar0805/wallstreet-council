@@ -105,7 +105,7 @@ async def api_budget(_: Request):
     from . import floor, llm
     return JSONResponse({"live_pid": floor.running_pid(), "floor_session": floor.floor_id(),
                          **{p: {"used": store.usage_today(p), "left": llm.budget_left(p),
-                                "per_day": llm.daily_budget(p)} for p in ("codex", "claude")}})
+                                "per_day": llm.daily_budget(p)} for p in ("codex", "claude", "copilot")}})
 
 
 async def api_stream(req: Request):

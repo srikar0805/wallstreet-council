@@ -10,6 +10,26 @@ It ships as an **MCP server**, a **live local monitor**, and a **read-only publi
 > opinion, not financial advice. Short-horizon returns are mostly noise, and costs and taxes here are
 > approximate published schedules, not advice for your situation.
 
+## The goal, and the daily pipeline
+
+**Goal:** grow $10 (and Rs 1,000) toward $100 with AI picks a non-trader can follow, judged honestly
+against just buying the index. Every feature is kept only if it serves that.
+
+1. **Collect** prices, full history, good and bad news, broker charges and taxes.
+2. **Shortlist** only what the budget can buy: any US stock (fractional shares), Indian stocks under Rs 1,000.
+3. **Debate** all day on free-tier models; full councils twice a day judged by Codex (US) and Copilot (India),
+   two calls a day each.
+4. **Decide** one Pick of the Day per market: BUY or WAIT, three plain reasons, good and bad news, and a backup
+   pick for anyone who wants to buy anyway.
+5. **Record and grade** every pick against the S&P 500 or Nifty 50.
+6. **Learn**: lessons from graded picks, more weight to the seats that were right.
+7. **Publish** a page a child can read: a BUY or WAIT card per market, a one-year chart against the market,
+   "$10 a year ago would be $X", good news and bad news, the stock's story, and a robots-vs-market score.
+
+**Deliberately cut or frozen because they drift from the goal:** daily IPO debates (now weekly; Rs 1,000 cannot
+buy a lot), a spotlight over unaffordable stocks, a general sports news feed, the Claude seat, options or
+leverage tooling, real-money order placement before a long track record, and charts for every stock.
+
 ## What it covers
 
 - **Markets**: US (NYSE, Nasdaq) and India (NSE, BSE): indices, VIX and India VIX, yields, USD/INR,
@@ -63,7 +83,8 @@ that record covers months and beats the index after costs, it is an experiment.
 | Nemotron Ultra | `nvidia/nemotron-3-ultra-550b-a55b` | Risk manager, argues for CASH when warranted |
 | Muse | `meta/muse-glimmer-30b` | Alternative data: IPL and cricket, NFL, entertainment, festivals, consumer trends |
 | GLM | `z-ai/glm-5.3` | Contrarian: mean reversion, fading hype |
-| Codex | local Codex CLI (ChatGPT sign-in) | Chair: weighs the arguments and rules |
+| Codex | local Codex CLI (ChatGPT sign-in) | Chair for US councils |
+| Copilot | local GitHub Copilot CLI (GitHub sign-in) | Chair for Indian and IPO councils |
 | Claude (optional) | local Claude Code CLI, Opus | Devil's advocate |
 
 Every seat has fallbacks, and busy endpoints (429, 503) are retried. Change the table by writing

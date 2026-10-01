@@ -187,7 +187,7 @@ def main(argv: list[str] | None = None) -> None:
             print(f"started floor, pid {floor.start_detached()}")
     elif a.cmd == "budget":
         from . import llm, store
-        for prov in ("codex", "claude"):
+        for prov in ("codex", "claude", "copilot"):
             print(f"{prov}: {store.usage_today(prov)} used, {llm.budget_left(prov)} left of {llm.daily_budget(prov)} today")
     elif a.cmd == "monitor":
         from . import monitor
@@ -210,7 +210,7 @@ def main(argv: list[str] | None = None) -> None:
                 return s["name"], s["model"], "FAIL", 0, str(e)[:120]
         with ThreadPoolExecutor(10) as ex:
             seats = [s for s in load_seats(a.claude)
-                     if a.rationed or s["model"].split("/")[0] not in ("codex", "claude")]
+                     if a.rationed or s["model"].split("/")[0] not in ("codex", "claude", "copilot")]
             for row in ex.map(one, seats):
                 print("{:<16} {:<48} {:<5} {:>6}ms  {}".format(*row))
     elif a.cmd == "portfolio":

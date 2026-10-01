@@ -140,7 +140,9 @@ def record_usage(provider: str, model: str, ok: bool) -> None:
 
 def usage_today(provider: str) -> int:
     with conn() as c:
-        return c.execute("SELECT COUNT(*) FROM usage WHERE day=? AND provider=?", (_et_day(), provider)).fetchone()[0]
+        # failed calls (refused before answering) do not spend a subscription request
+        return c.execute("SELECT COUNT(*) FROM usage WHERE day=? AND provider=? AND ok=1",
+                         (_et_day(), provider)).fetchone()[0]
 
 
 def last_events(sid: str, n: int = 12) -> list[dict]:

@@ -157,7 +157,7 @@ def live_status() -> dict[str, Any]:
     from . import floor, llm
     return {"pid": floor.running_pid(), "floor_session": floor.floor_id(),
             "rations": {p: {"used": store.usage_today(p), "left": llm.budget_left(p), "per_day": llm.daily_budget(p)}
-                        for p in ("codex", "claude")}}
+                        for p in ("codex", "claude", "copilot")}}
 
 
 def main() -> None:

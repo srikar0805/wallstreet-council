@@ -55,7 +55,12 @@ DEFAULT_SEATS = [
      "focus": "fading the crowd, mean reversion, oversold quality, overbought hype and IPO frenzies"},
     {"name": "Codex", "model": "codex/default", "fallback": ["nvidia/nvidia/nemotron-3-ultra-550b-a55b"],
      "role": "Chair and chief strategist",
-     "focus": "weighing every argument, spotting weak reasoning, and making the final call", "chair": True},
+     "focus": "weighing every argument, spotting weak reasoning, and making the final call", "chair": True,
+     "chair_markets": ["US"]},
+    {"name": "Copilot", "model": "copilot/default", "fallback": ["nvidia/nvidia/nemotron-3-ultra-550b-a55b"],
+     "role": "Chair for India and IPOs",
+     "focus": "weighing every argument, spotting weak reasoning, and making the final call", "chair": True,
+     "chair_markets": ["IN", "BOTH"]},
 ]
 CLAUDE_SEAT = {"name": "Claude", "model": "claude/opus", "role": "Devil's advocate",
                "focus": "stress-testing the strongest consensus and checking every number against the brief"}
@@ -164,7 +169,7 @@ class Council:
             self.say(phase, seat["name"], "status", f"{seat['model']} unavailable, sitting in with {r['model']}")
         seat_model = r["model"]
         data = llm.parse_json(r["text"])
-        if not isinstance(data, dict) and seat_model.split("/")[0] not in ("codex", "claude"):
+        if not isinstance(data, dict) and seat_model.split("/")[0] not in ("codex", "claude", "copilot"):
             # one repair attempt: reasoning models sometimes spend the budget thinking aloud and never
             # reach the JSON, so ask again with their notes attached and a larger budget
             try:
@@ -431,7 +436,8 @@ class Council:
         tally = self.tally(votes)
         self.say("ruling", "Moderator", "tally", "Tally (confidence x each seat's learned trust weight): " +
                  ", ".join(f"{k} {v:g}" for k, v in tally.items()), data=tally)
-        chair = next((s for s in self.seats if s.get("chair")), None)
+        chairs = [s for s in self.seats if s.get("chair")]
+        chair = next((s for s in chairs if self.market in s.get("chair_markets", [])), chairs[0] if chairs else None)
         # The chair sits on a rationed subscription seat, so it gets a slim brief.
         if self.mode == "pick":
             slim = market.compact({**self.brief, "dossiers": [f for f in self.brief.get("dossiers", [])
@@ -439,16 +445,26 @@ class Council:
             ask = ('JSON: {"decision": "TICKER or CASH", "entry_window": "", "why": "4 to 6 sentences", '
                    '"dissent": "", "stop_loss_pct": 0, "take_profit_pct": 0, '
                    '"horizon_return_pct": {"bear": 0, "base": 0, "bull": 0}, "confidence": 1-10, '
-                   '"what_would_change_our_mind": ""}')
+                   '"what_would_change_our_mind": "", '
+                   '"backup_pick": "if decision is CASH: the one CANDIDATE you would buy if the client insists on '
+                   'buying now, else the same as decision", '
+                   '"plain_reasons": ["3 short sentences a 12-year-old understands: no jargon, no abbreviations"], '
+                   '"good_news": ["up to 3 short plain facts from the brief that help this stock"], '
+                   '"bad_news": ["up to 3 short plain facts from the brief that could push it down"], '
+                   '"one_line": "the decision in under 15 plain words"}')
         elif self.mode == "ipo":
             slim = market.compact({"clock": self.brief["clock"], "ipos": self.brief.get("ipos")}, news=False)[:9000]
             ask = ('JSON: {"rulings": [{"ipo": "", "call": "APPLY|AVOID|BUY_AFTER_LISTING|WATCH", "why": ""}], '
                    '"decision": "the single best IPO idea, or NONE", "why": "4 to 6 sentences", "dissent": "", '
-                   '"confidence": 1-10, "what_would_change_our_mind": ""}')
+                   '"confidence": 1-10, "what_would_change_our_mind": "", '
+                   '"plain_reasons": ["3 short sentences a 12-year-old understands"], '
+                   '"one_line": "the decision in under 15 plain words"}')
         else:
             slim = self.brief_text[:9000]
             ask = ('JSON: {"decision": "the council\'s answer in a few words", "why": "4 to 6 sentences", '
-                   '"dissent": "", "confidence": 1-10, "what_would_change_our_mind": ""}')
+                   '"dissent": "", "confidence": 1-10, "what_would_change_our_mind": "", '
+                   '"plain_reasons": ["3 short sentences a 12-year-old understands"], '
+                   '"one_line": "the answer in under 15 plain words"}')
         slim_votes = {n: {k: v.get(k) for k in ("vote", "votes", "best", "confidence", "entry_window",
                                                  "horizon_return_pct", "reason") if v.get(k) is not None}
                       for n, v in votes.items()}
@@ -472,6 +488,11 @@ class Council:
             prices = {c["symbol"] for c in self.brief["candidates"]}
             dec = str(d.get("decision", "CASH")).upper().strip()
             d["decision"] = dec if dec in prices else "CASH"
+            # Always give the reader something concrete: the chair's backup, else the best-voted stock.
+            bp = str(d.get("backup_pick") or "").upper().strip()
+            if bp not in prices:
+                bp = next((k for k in tally if k in prices), d["decision"])
+            d["backup_pick"] = bp if bp in prices else None
         d["decision"] = str(d.get("decision") or "NONE")
         d["tally"], d["mode"], d["market"], d["topic"] = tally, self.mode, self.market, self.topic
         self.say("ruling", chair["name"] if chair else "Moderator", "ruling",
@@ -550,7 +571,8 @@ class Council:
                 ruling["quant"] = self.quant_check(ruling)
                 if self.open_paper_position and ruling["decision"] != "CASH":
                     self.paper_position(ruling)
-                chair = next((s["name"] for s in self.seats if s.get("chair")), "Council")
+                chair = next((s["name"] for s in self.seats if s.get("chair")
+                              and self.primary in s.get("chair_markets", [self.primary])), "Council")
                 learning.record_calls(self.id, self.primary, str(market.horizon_end(self.horizon)), votes, ruling,
                                       chair, {c["symbol"]: c["price"] for c in self.brief["candidates"]})
                 self.say("close", "Moderator", "status", "Every vote and the ruling are now on the record and will be "
