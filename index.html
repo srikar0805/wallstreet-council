@@ -3,307 +3,132 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wall Street Council</title>
-<meta name="description" content="AI models debating US and Indian stocks and IPOs in public, with every call graded against the index.">
+<title>AI Stock Council</title>
+<meta name="description" content="Eight AI models practise stock picking with pretend money, in public, so anyone can check whether they are any good.">
 <style>
-:root{
-  --bg:#0b0e14;--panel:#121722;--panel2:#171d2b;--line:#242c3d;--text:#e6e9ef;--muted:#8a93a6;
-  --green:#3ddc97;--red:#ff6b6b;--gold:#f5c451;--blue:#6aa9ff;
-}
+:root{--bg:#f7f6f2;--card:#ffffff;--text:#1d1d1f;--muted:#6b6b70;--line:#e6e4dd;--good:#1a7f4b;--good-bg:#e8f5ee;--bad:#b42318;--bad-bg:#fdecea;--wait:#8a6d1d;--wait-bg:#fbf3dc;--accent:#2d5bd7}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#111214;--card:#1b1c1f;--text:#ececee;--muted:#9a9aa1;--line:#2a2b2f;--good:#4cc38a;--good-bg:#15291f;--bad:#ff8577;--bad-bg:#2e1714;--wait:#e2c46b;--wait-bg:#2b2412;--accent:#8fb0ff}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
-header h1{font-size:17px;margin:0;letter-spacing:.3px;margin-right:6px}
-header h1 span{color:var(--gold)}
-.pill{font-size:12px;padding:2px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
-.pill.live{color:var(--green);border-color:#1f5c45}
-.pill.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px;animation:p 1.2s infinite}
-@keyframes p{50%{opacity:.25}}
-.about{background:#141a26;border-bottom:1px solid var(--line);padding:14px 20px;color:#cdd3de;font-size:13.5px}
-.about b{color:var(--text)}
-main{display:grid;grid-template-columns:290px 1fr 340px;height:calc(100vh - 52px)}
-body.static main{height:auto;min-height:calc(100vh - 52px)}
-aside,section{overflow:auto}
-aside{padding:16px;border-right:1px solid var(--line);background:var(--panel)}
-aside.right{border-right:0;border-left:1px solid var(--line)}
-section{display:flex;flex-direction:column}
-h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:18px 0 8px}
-h2:first-child{margin-top:0}
-form{display:grid;gap:8px}
-input,button,select,textarea{font:inherit;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:8px 10px;width:100%}
-textarea{resize:vertical;min-height:60px}
-button{background:var(--gold);color:#1a1400;font-weight:600;border:0;cursor:pointer}
-button:disabled{opacity:.5;cursor:wait}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-label.chk{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:13px}
-label.chk input{width:auto}
-.sess{padding:8px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:4px}
-.sess:hover{background:var(--panel2)}
-.sess.on{border-color:var(--gold);background:var(--panel2)}
-.sess small{color:var(--muted);display:block}
-.tag{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 5px;margin-right:4px}
-#feedwrap{flex:1;overflow:auto}
-#feed{padding:20px 28px 40px;max-width:980px;margin:0 auto}
-#chat{border-top:1px solid var(--line);background:var(--panel);padding:10px 16px;display:flex;gap:8px}
-#chat textarea{min-height:42px;height:42px}
-#chat button{width:auto;padding:0 18px}
-.phase{margin:26px 0 12px;display:flex;align-items:center;gap:10px;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1.5px}
-.phase::after{content:"";flex:1;height:1px;background:var(--line)}
-.msg{display:flex;gap:12px;margin:10px 0;animation:in .25s ease}
-.msg.client{flex-direction:row-reverse}
-.msg.client .bubble{background:#1d2a1f;border-color:#2c4a31}
-@keyframes in{from{opacity:0;transform:translateY(4px)}}
-.av{flex:0 0 36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:700;font-size:13px;color:#0b0e14}
-.bubble{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-width:0}
-.who{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px}
-.who b{font-size:14px}
-.who .m{color:var(--muted);font-size:11px;font-family:ui-monospace,monospace}
-.who .k{font-size:11px;color:var(--muted);margin-left:auto}
-.status{color:var(--muted);font-size:13px;margin:6px 0 6px 48px}
-.status.error{color:var(--red)}
-.picks{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.tk{font-family:ui-monospace,monospace;font-size:12px;padding:2px 8px;border-radius:6px;background:var(--panel2);border:1px solid var(--line)}
-.tk.cash{color:var(--muted)}
-details{margin-top:6px;color:var(--muted);font-size:12px}
-details pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);padding:8px;border-radius:8px;max-height:320px;overflow:auto}
-.ruling{border:1px solid var(--gold);background:linear-gradient(180deg,#221c0a,var(--panel));border-radius:14px;padding:16px 18px;margin:14px 0}
-.ruling .big{font-size:24px;font-weight:800;color:var(--gold);font-family:ui-monospace,monospace;word-break:break-word}
-.ruling ul{margin:6px 0 0 18px;padding:0}
-.quant{border:1px dashed var(--blue);border-radius:12px;padding:12px 14px;margin:10px 0;color:#cfe0ff}
-table{width:100%;border-collapse:collapse;font-size:12.5px}
-td,th{padding:5px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-th{color:var(--muted);font-weight:500}
-.up{color:var(--green)}.dn{color:var(--red)}
-.empty{color:var(--muted);text-align:center;margin-top:25vh}
-.disc{font-size:11.5px;color:var(--muted);margin-top:18px;line-height:1.45}
-.stat{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
-.stat div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
-.stat b{display:block;font-size:18px}
-.stat small{color:var(--muted)}
-.lesson{background:var(--panel2);border-left:3px solid var(--gold);padding:6px 10px;border-radius:6px;margin:6px 0;font-size:12.5px}
-.note{color:var(--muted);font-size:12px}
-body.static .local{display:none!important}
-@media (max-width:1100px){main{grid-template-columns:1fr;height:auto}aside{border:0}#feed{padding:16px}
-  body:not(.static) section{order:-1;height:88vh;border-bottom:1px solid var(--line)}
-  body.static aside.right{order:1}body.static section{order:2;max-height:80vh}body.static aside:first-child{order:3}}
+body{margin:0;background:var(--bg);color:var(--text);font:18px/1.55 -apple-system,"Segoe UI",system-ui,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:30px;margin:0 0 6px;letter-spacing:-.3px}
+.lead{color:var(--muted);margin:0 0 26px;font-size:18px}
+h2{font-size:21px;margin:34px 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:12px 0}
+.score{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center}
+.score div{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 8px}
+.score b{display:block;font-size:34px;line-height:1.1}
+.score span{color:var(--muted);font-size:15px}
+.good{color:var(--good)}.bad{color:var(--bad)}.wait{color:var(--wait)}
+.row{display:flex;gap:14px;align-items:flex-start}
+.badge{flex:0 0 auto;font-size:14px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.badge.good{background:var(--good-bg)}.badge.bad{background:var(--bad-bg)}.badge.wait{background:var(--wait-bg)}
+.when{color:var(--muted);font-size:15px}
+.what{font-size:18px}
+.compare{color:var(--muted);font-size:16px;margin-top:4px}
+.chat .who{font-weight:600}
+.chat .role{color:var(--muted);font-weight:400}
+.chat p{margin:4px 0 0}
+.note{color:var(--muted);font-size:15px}
+a{color:var(--accent)}
+.foot{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:15px}
+.empty{color:var(--muted)}
+@media (max-width:520px){body{font-size:17px}h1{font-size:26px}.score b{font-size:28px}}
 </style>
 </head>
 <body>
-<header>
-  <h1>Wall Street <span>Council</span></h1>
-  <span id="live" class="pill">idle</span>
-  <span id="clock" class="pill"></span>
-  <span id="ration" class="pill local" title="Codex (ChatGPT plan) calls used today, US Eastern day"></span>
-  <span id="updated" class="pill" style="display:none"></span>
-</header>
-<div class="about" id="about" style="display:none">
-  <b>What this is.</b> Eight AI models (Google Gemini, several NVIDIA-hosted models, and OpenAI Codex as chair) argue in public about US and Indian stocks and IPOs, count broker charges and taxes, and vote. <b>Nothing is bought</b>: every decision is a paper trade. <b>How to check it:</b> every ruling is recorded with its time and price and published before the outcome is known (the git history of this site is the timestamped ledger), then graded against simply holding the index (S&amp;P 500 or Nifty 50). The <b>Track record</b> panel shows wins and losses alike. Until it has months of results that beat the index, treat it as an experiment, not advice.
+<div class="wrap">
+  <h1>AI Stock Council</h1>
+  <p class="lead">Eight AI models from Google, NVIDIA and OpenAI debate stocks every day. They practise with <b>pretend money</b>: $10 in the US market and ₹1,000 in India. Each choice is compared with simply buying the whole market, so we can see whether they are any good before anyone trusts them with real money.</p>
+
+  <h2>Their score so far</h2>
+  <div class="score">
+    <div><b class="good" id="s-better">0</b><span>did better than the market</span></div>
+    <div><b class="bad" id="s-worse">0</b><span>did worse than the market</span></div>
+    <div><b class="wait" id="s-wait">0</b><span>too early to judge</span></div>
+  </div>
+  <p class="note" id="s-note">"The market" means the S&amp;P 500 for US decisions and the Nifty 50 for Indian ones. A choice needs at least a week before the result means anything.</p>
+
+  <h2>What they decided</h2>
+  <div id="decisions"><p class="empty">No decisions yet.</p></div>
+
+  <h2>What they are saying right now</h2>
+  <div id="chat"><p class="empty">Nothing yet today.</p></div>
+
+  <div class="foot">
+    <p><b>Nothing here is real trading.</b> No money is spent and no order goes to any broker. These are AI opinions, not financial advice.</p>
+    <p><b>Why the results can be trusted:</b> every decision is saved publicly, with the time and the price, before anyone knows how it turns out. The saved history cannot be quietly changed afterwards.</p>
+    <p>Updated <span id="updated">recently</span>. <a href="details.html">See the full debate and every detail</a>.</p>
+  </div>
 </div>
-<main>
-  <aside>
-    <div class="local">
-      <h2>Convene the council</h2>
-      <form id="conv">
-        <div class="row">
-          <select name="mode" title="What to debate">
-            <option value="pick">Stock pick</option><option value="ipo">IPOs</option><option value="topic">My question</option>
-          </select>
-          <select name="market" title="Market">
-            <option value="US">US</option><option value="IN">India</option><option value="BOTH">Both</option>
-          </select>
-        </div>
-        <textarea name="topic" placeholder="Your question or IPO focus, e.g. What if I apply for the Srit India IPO and get allotted?"></textarea>
-        <div class="row">
-          <input name="budget" type="number" step="0.01" min="1" placeholder="Budget ($10 / ₹1000)" title="Budget">
-          <input name="rounds" type="number" min="0" max="3" value="1" title="Cross-examination rounds">
-        </div>
-        <input name="horizon" value="end of next month" title="Horizon">
-        <input name="tickers" placeholder="Extra tickers, e.g. NVDA, RELIANCE.NS">
-        <label class="chk"><input type="checkbox" name="include_claude"> Seat Claude (uses your Max plan)</label>
-        <button id="go">Convene</button>
-      </form>
-    </div>
-    <div class="local" id="phonebox" style="display:none">
-      <h2>Phone access</h2>
-      <div id="qr" style="background:#fff;padding:8px;border-radius:8px;width:max-content"></div>
-      <p class="note" style="word-break:break-all"><a id="phonelink" style="color:var(--blue)" target="_blank"></a></p>
-      <button type="button" id="reveal" style="background:var(--panel2);color:var(--text);border:1px solid var(--line)">Show password</button>
-      <p id="pw" class="note" style="font-family:ui-monospace,monospace;font-size:15px;color:var(--text)"></p>
-      <p class="note">Scan with your phone camera, then log in once; it remembers you for 30 days. The link changes if the Mac restarts, so check back here.</p>
-    </div>
-    <h2>Sessions</h2>
-    <div id="sessions"></div>
-    <p class="disc">Paper trading simulation. Model opinions, not financial advice. Short-horizon returns are mostly noise; costs and taxes are approximate and depend on your broker and residency.</p>
-  </aside>
-  <section>
-    <div id="feedwrap"><div id="feed"><div class="empty">Pick a session or convene the council.</div></div></div>
-    <form id="chat" class="local">
-      <textarea name="text" placeholder="Talk to the council: a suggestion, a what-if, a stock to look at…"></textarea>
-      <button>Send</button>
-    </form>
-  </section>
-  <aside class="right">
-    <h2>What the council decided</h2>
-    <p class="note">Paper trades only: nothing is ever sent to a broker and no real money moves.</p>
-    <div id="decisions"><small class="note">No decisions yet.</small></div>
-    <h2>Track record</h2>
-    <div id="track"><small class="note">No graded calls yet. Every ruling is graded against the index once prices move.</small></div>
-    <h2>How each model's votes are doing</h2>
-    <p class="note">"vs index" = the stock that model voted for, minus what the index (S&amp;P 500 or Nifty 50) did since the vote. A model that voted CASH shows + when the market fell (sitting out beat it) and − when the market rose.</p>
-    <div id="board"><small class="note">No votes yet.</small></div>
-    <h2>Lessons learned</h2>
-    <div id="lessons"><small class="note">Lessons appear once calls mature and are graded.</small></div>
-    <h2>Paper portfolio</h2>
-    <div id="port"><small class="note">No positions.</small></div>
-  </aside>
-</main>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-const STATIC = true;
 const $ = s => document.querySelector(s);
-if (STATIC) { document.body.classList.add("static"); $("#about").style.display = "block"; }
-const API = STATIC
-  ? {sessions:"data/sessions.json", events:s=>`data/events/${s}.json`, track:"data/track.json", portfolio:"data/portfolio.json", budget:"data/budget.json"}
-  : {sessions:"/api/sessions", events:s=>`/api/events?session=${s}`, track:"/api/track", portfolio:"/api/portfolio", budget:"/api/budget"};
-const get = u => fetch(u + (STATIC ? `?t=${Date.now()}` : ""), {cache:"no-store"}).then(r => r.ok ? r.json() : null).catch(() => null);
-const PAL = ["#f5c451","#6aa9ff","#3ddc97","#ff8fab","#b692ff","#ffb86b","#5ee3e3","#c3e88d","#ff6b6b","#9aa5ff"];
-const SYS = ["Moderator","Research desk","Quant check","Tape","Council","Post-mortem"];
-const colors = {};
-const col = n => colors[n] ??= SYS.includes(n) ? "#8a93a6" : n === "Client" ? "#3ddc97" : PAL[Object.keys(colors).filter(k=>!SYS.includes(k) && k!=="Client").length % PAL.length];
+const get = u => fetch(u + "?t=" + Date.now(), {cache: "no-store"}).then(r => r.ok ? r.json() : null).catch(() => null);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const PHASES = {floor:"Trading floor",client:"Client",start:"Convened",research:"Research desk",opening:"Opening positions",debate:"Cross-examination",vote:"Final vote",ruling:"The ruling",quant:"Quant check",close:"On the record",end:"Adjourned"};
-let current = null, es = null, lastPhase = null, lastSeq = 0;
+const ROLE = {"Gemini":"economy expert","Nemotron Super":"chart reader","Kimi K3":"company finances","GPT-OSS":"news reader",
+  "Nemotron Ultra":"risk checker","Muse":"trends and sports","GLM":"contrarian","Codex":"chair","Claude":"devil's advocate"};
+const NAMES = {GOOGL:"Google",AAPL:"Apple",MSFT:"Microsoft",NVDA:"NVIDIA",AMZN:"Amazon",META:"Meta",TSLA:"Tesla",AMD:"AMD",
+  NFLX:"Netflix","RELIANCE.NS":"Reliance","HDFCBANK.NS":"HDFC Bank","ICICIBANK.NS":"ICICI Bank","TCS.NS":"TCS","INFY.NS":"Infosys",
+  "SBIN.NS":"SBI","ITC.NS":"ITC","CUB.NS":"City Union Bank","TITAN.NS":"Titan","MARUTI.NS":"Maruti Suzuki"};
+const nm = t => NAMES[t] || String(t || "").replace(/\.(NS|BO)$/, "");
+const money = (v, m) => (m === "IN" ? "₹" : "$") + Number(v).toLocaleString(m === "IN" ? "en-IN" : "en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const sign = x => (x > 0 ? "+" : "") + x.toFixed(1) + "%";
+const day = ts => new Date(ts * 1000).toLocaleDateString([], {month: "short", day: "numeric", year: "numeric"});
+const ago = ts => { const m = Math.round((Date.now() / 1000 - ts) / 60); return m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : day(ts); };
+const firstSentences = (t, n = 2) => { const parts = String(t).split(/(?<=[.!?])\s+/); return parts.slice(0, n).join(" ") + (parts.length > n ? " …" : ""); };
+const MIN_DAYS = 7;
 
-function initials(n){ return n.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase(); }
-function pct(x){ if(x==null) return "–"; const c = x>0?"up":x<0?"dn":""; return `<span class="${c}">${x>0?"+":""}${x}%</span>`; }
-function label(s){
-  if (s.id.startsWith("floor-")) return "Trading floor " + s.id.slice(6);
-  const m = {pick:"Pick", ipo:"IPOs", topic:"Question"}[s.mode||"pick"] || "Pick";
-  const d = s.verdict ? s.verdict.decision : s.status === "running" ? "debating…" : s.status;
-  return `<span class="tag">${esc(m)} ${esc(s.market||"US")}</span>${esc(d)}`;
-}
+async function load(){
+  const [sessions, track, budget] = await Promise.all([get("data/sessions.json"), get("data/track.json"), get("data/budget.json")]);
+  if (budget && budget.published_at) $("#updated").textContent = new Date(budget.published_at * 1000).toLocaleString();
+  const ss = sessions || [];
+  const byId = Object.fromEntries(ss.map(s => [s.id, s]));
+  const graded = {}; ((track && track.rulings) || []).forEach(r => graded[r.session] = r);
 
-function render(e){
-  if (e.seq <= lastSeq) return; lastSeq = e.seq;
-  const feed = $("#feed");
-  if (feed.querySelector(".empty")) feed.innerHTML = "";
-  if (e.phase !== lastPhase && e.kind !== "user"){ lastPhase = e.phase; feed.insertAdjacentHTML("beforeend", `<div class="phase">${PHASES[e.phase]||esc(e.phase)}</div>`); }
-  const d = e.data || {};
-  if (e.kind === "status" || (e.kind === "error" && SYS.includes(e.speaker))){
-    feed.insertAdjacentHTML("beforeend", `<div class="status ${e.kind}">${SYS.includes(e.speaker) ? "" : "<b>"+esc(e.speaker)+":</b> "}${esc(e.text)}</div>`);
-  } else if (e.kind === "ruling"){
-    const r = d.horizon_return_pct || {};
-    const rulings = (d.rulings||[]).map(x=>`<li><b>${esc(x.ipo)}</b>: ${esc(x.call)}. ${esc(x.why)}</li>`).join("");
-    const extra = d.mode === "pick" || !d.mode ? `<div>Entry: <b>${esc(d.entry_window||d.entry_window_et||"–")}</b> · confidence ${esc(d.confidence??"–")}/10 · stop ${esc(d.stop_loss_pct??"–")}% · take profit ${esc(d.take_profit_pct??"–")}%</div>
-      <div>Council view to horizon: bear ${pct(r.bear)} · base ${pct(r.base)} · bull ${pct(r.bull)}</div>` : `<div>confidence ${esc(d.confidence??"–")}/10</div>`;
-    feed.insertAdjacentHTML("beforeend", `<div class="ruling"><div class="who"><b style="color:${col(e.speaker)}">${esc(e.speaker)}</b><span class="m">${esc(e.model)}</span><span class="k">ruling</span></div>
-      <div class="big">${esc(d.decision)}</div>${extra}${rulings?`<ul>${rulings}</ul>`:""}
-      <p>${esc(d.why)}</p>${d.dissent?`<p><b>Dissent:</b> ${esc(d.dissent)}</p>`:""}${d.what_would_change_our_mind?`<p><b>Would change our mind:</b> ${esc(d.what_would_change_our_mind)}</p>`:""}</div>`);
-  } else if (["quant","paper","tally","brief"].includes(e.kind)){
-    feed.insertAdjacentHTML("beforeend", `<div class="quant">${esc(e.text)}</div>`);
-  } else {
-    let picks = "";
-    if (d.picks) picks = d.picks.map(p=>`<span class="tk">${esc(p.ticker)} · ${esc(p.conviction)}/10</span>`).join("");
-    if (d.calls) picks = d.calls.map(p=>`<span class="tk">${esc(p.ipo)}: ${esc(p.call)}</span>`).join("");
-    if (d.position) picks = `<span class="tk">${esc(d.position)} · ${esc(d.conviction)}/10</span>`;
-    if (d.current_view) picks = `<span class="tk">now: ${esc(d.current_view.answer)} · ${esc(d.current_view.conviction)}/10</span>` + (d.changed_mind?`<span class="tk">changed mind</span>`:"");
-    if (d.vote) picks = `<span class="tk ${d.vote==="CASH"?"cash":""}">VOTE ${esc(d.vote)}</span>`;
-    if (d.challenges) picks += d.challenges.map(c=>`<span class="tk">→ ${esc(c.to)}</span>`).join("");
-    if (d.watch && d.watch.length) picks += d.watch.map(t=>`<span class="tk">watch ${esc(t)}</span>`).join("");
-    const raw = e.data && e.kind !== "user" ? `<details><summary>full reasoning</summary><pre>${esc(JSON.stringify(e.data,null,2))}</pre></details>` : "";
-    const who = e.kind === "user" ? "Client" : e.speaker;
-    feed.insertAdjacentHTML("beforeend", `<div class="msg ${e.kind==="user"?"client":""}"><div class="av" style="background:${col(who)}">${e.kind==="user"?"You":initials(who)}</div>
-      <div class="bubble"><div class="who"><b style="color:${col(who)}">${esc(who)}</b><span class="m">${esc(e.model)}</span><span class="k">${new Date(e.ts*1000).toLocaleTimeString()}</span></div>
-      <div class="${e.kind==="error"?"dn":""}">${esc(e.text)}</div><div class="picks">${picks}</div>${raw}</div></div>`);
-  }
-  const sc = $("#feedwrap"); if (sc.scrollHeight - sc.scrollTop - sc.clientHeight < 500) sc.scrollTop = sc.scrollHeight;
-}
-
-async function open(sid){
-  current = sid; lastPhase = null; lastSeq = 0; $("#feed").innerHTML = "";
-  document.querySelectorAll(".sess").forEach(n => n.classList.toggle("on", n.dataset.id === sid));
-  es && es.close();
-  if (STATIC) { (await get(API.events(sid)) || []).forEach(render); return; }
-  es = new EventSource(`/api/stream?session=${sid}`);
-  es.onmessage = m => { const e = JSON.parse(m.data); render(e); if (e.phase === "end") refresh(); };
-}
-
-async function refresh(){
-  const ss = await get(API.sessions) || [];
-  $("#sessions").innerHTML = ss.map(s => `<div class="sess ${s.id===current?"on":""}" data-id="${s.id}">
-    <b>${label(s)}</b><small>${new Date(s.created*1000).toLocaleString()}${s.topic?` · ${esc(s.topic).slice(0,70)}`:""}</small></div>`).join("") || `<small class="note">None yet.</small>`;
-  document.querySelectorAll(".sess").forEach(n => n.onclick = () => open(n.dataset.id));
-  const bud = await get(API.budget);
-  if (bud && bud.codex) $("#ration").textContent = `ChatGPT ${bud.codex.used}/${bud.codex.per_day} today` + (bud.live_pid ? " · floor live" : "");
-  if (bud && bud.published_at) { $("#updated").style.display = ""; $("#updated").textContent = "updated " + new Date(bud.published_at*1000).toLocaleString(); }
-  const running = ss.some(s => s.status === "running") || !!(bud && bud.live_pid);
-  $("#live").className = "pill" + (running ? " live" : ""); $("#live").textContent = running ? "live" : "idle";
-  if (!current && ss.length) open((ss.find(s => s.status === "live") || ss[0]).id);
-  else if (STATIC && current) (await get(API.events(current)) || []).forEach(render);
-}
-
-function decisions(ss, p){
-  const pos = {}; ((p && p.positions) || []).forEach(x => pos[x.session] = x);
-  const cur = m => m === "IN" ? "₹" : "$";
-  const rows = ss.filter(s => s.verdict && !s.id.startsWith("floor-")).slice(0, 12).map(s => {
-    const v = s.verdict, x = pos[s.id], when = new Date(s.created*1000).toLocaleString([], {month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"});
-    const mode = s.mode || "pick", c = cur(s.market);
-    let what;
-    if (mode === "pick" && x) what = `Bought (on paper) <b>${c}${x.dollars.toFixed(2)}</b> of <b>${esc(x.ticker)}</b> at ${c}${x.entry_price.toFixed(2)} a share. Now worth <b>${c}${(x.value_now ?? x.dollars).toFixed(2)}</b> (${pct(x.pnl_pct)}). Held until ${esc(x.target_date)}.`;
-    else if (mode === "pick" && v.decision === "CASH") what = `Bought nothing. Kept the ${c}${s.budget} in cash.`;
-    else if (mode === "ipo") what = `IPO verdict: <b>${esc(v.decision)}</b>` + ((v.rulings||[]).length ? ` (${v.rulings.map(r => esc(r.ipo) + ": " + esc(r.call)).join(", ")})` : "");
-    else what = `Answer: <b>${esc(v.decision)}</b>`;
-    return `<div class="lesson" style="border-left-color:var(--blue)"><span class="tag">${esc({pick:"Stock",ipo:"IPO",topic:"Question"}[mode]||mode)} ${esc(s.market||"US")}</span> ${when}<br>${what}</div>`;
+  let better = 0, worse = 0, wait = 0;
+  const rows = ss.filter(s => s.verdict && !s.id.startsWith("floor-")).slice(0, 15).map(s => {
+    const v = s.verdict, mode = s.mode || "pick", m = s.market || "US", g = graded[s.id];
+    if (mode === "ipo") {
+      const calls = (v.rulings || []).map(r => `${esc(r.ipo)}: ${esc(String(r.call).toLowerCase().replace(/_/g, " "))}`).join(", ");
+      return `<div class="card"><div class="when">${day(s.created)} · India · new share sales (IPOs)</div>
+        <div class="what">${v.decision === "NONE" || !v.decision ? "Decided not to apply for any IPO." : "Best idea: <b>" + esc(v.decision) + "</b>"}</div>
+        ${calls ? `<div class="compare">${calls}</div>` : ""}</div>`;
+    }
+    if (mode === "topic") {
+      return `<div class="card"><div class="when">${day(s.created)} · a question</div>
+        <div class="what">${esc(s.topic || "")}</div><div class="compare">Their answer: <b>${esc(v.decision)}</b></div></div>`;
+    }
+    const budgetAmt = s.budget || (m === "IN" ? 1000 : 10);
+    const idx = m === "IN" ? "Nifty 50" : "S&P 500";
+    const cash = v.decision === "CASH";
+    const what = cash ? `Bought nothing. Kept the ${money(budgetAmt, m)} as cash.` : `Bought <b>${esc(nm(v.decision))}</b> with ${money(budgetAmt, m)}.`;
+    let badge = `<span class="badge wait">too early</span>`, compare = "";
+    if (g && g.excess_pct != null && g.bench_ret_pct != null) {
+      const ours = budgetAmt * (1 + (g.ret_pct || 0) / 100), theirs = budgetAmt * (1 + g.bench_ret_pct / 100);
+      const daysOld = (Date.now() / 1000 - s.created) / 86400;
+      compare = `Now worth <b>${money(ours, m)}</b>. Buying the whole market (${idx}) instead would be ${money(theirs, m)}.`;
+      if (daysOld < MIN_DAYS || Math.abs(g.excess_pct) < 0.05) { wait++; }
+      else if (g.excess_pct > 0) { better++; badge = `<span class="badge good">better than market</span>`; }
+      else { worse++; badge = `<span class="badge bad">worse than market</span>`; }
+    } else { wait++; }
+    return `<div class="card"><div class="row"><div style="flex:1"><div class="when">${day(s.created)} · ${m === "IN" ? "India" : "US"}</div>
+      <div class="what">${what}</div>${compare ? `<div class="compare">${compare}</div>` : ""}</div>${badge}</div></div>`;
   });
-  if (rows.length) $("#decisions").innerHTML = rows.join("");
-}
+  $("#decisions").innerHTML = rows.join("") || `<p class="empty">No decisions yet.</p>`;
+  $("#s-better").textContent = better; $("#s-worse").textContent = worse; $("#s-wait").textContent = wait;
 
-async function side(){
-  const [t, p, ss] = await Promise.all([get(API.track), get(API.portfolio), get(API.sessions)]);
-  decisions(ss || [], p);
-  if (t){
-    const m = t.matured, a = t.all_graded;
-    if (a) $("#track").innerHTML = `<div class="stat">
-        <div><small>Rulings graded</small><b>${a.calls}</b><small>${m?m.calls:0} final</small></div>
-        <div><small>Beat the index</small><b>${a.beat_market_pct}%</b><small>of graded rulings</small></div>
-        <div><small>Avg return</small><b>${pct(a.avg_return_pct)}</b><small>per ruling</small></div>
-        <div><small>Index meanwhile</small><b>${pct(a.avg_benchmark_pct)}</b><small>excess ${pct(a.avg_excess_pct)}</small></div></div>
-      <table><tr><th>When</th><th>Call</th><th>Return</th><th>Index</th><th></th></tr>${t.rulings.slice(0,25).map(r=>`<tr><td>${new Date(r.ts*1000).toLocaleDateString()}</td><td>${esc(r.ticker)} <span class="tag">${esc(r.market)}</span></td><td>${pct(r.ret_pct)}</td><td>${pct(r.bench_ret_pct)}</td><td>${r.matured?"final":"live"}</td></tr>`).join("")}</table>
-      <p class="note">A ruling is "final" once its horizon passes; "live" ones still move. Excess = return minus the index over the same time.</p>`;
-    if (t.seats && t.seats.length) $("#board").innerHTML = `<table><tr><th>Model</th><th>Votes</th><th>vs index</th><th>Weight</th></tr>${t.seats.map(s=>`<tr><td style="color:${col(s.seat)}">${esc(s.seat)}</td><td>${s.matured_calls}/${s.matured_calls+s.live_calls}</td><td>${pct(s.matured_avg_excess_pct ?? s.live_avg_excess_pct)}</td><td>${s.trust_weight}</td></tr>`).join("")}</table>`;
-    if (t.lessons && t.lessons.length) $("#lessons").innerHTML = t.lessons.map(l=>`<div class="lesson">${esc(l.lesson)}${l.applies_to!=="all"?` <span class="tag">${esc(l.applies_to)}</span>`:""}</div>`).join("");
+  const floor = ss.find(s => s.id.startsWith("floor-"));
+  if (floor) {
+    const evs = (await get(`data/events/${floor.id}.json`)) || [];
+    const chat = evs.filter(e => e.kind === "chat" || e.kind === "user").slice(-5).reverse();
+    if (chat.length) $("#chat").innerHTML = chat.map(e => {
+      const you = e.kind === "user";
+      const who = you ? "Srikar" : e.speaker, role = you ? "asked" : (ROLE[e.speaker] || "analyst");
+      return `<div class="card chat"><span class="who">${esc(who)}</span> <span class="role">· ${esc(role)} · ${ago(e.ts)}</span><p>${esc(you ? e.text : firstSentences(e.text))}</p></div>`;
+    }).join("");
   }
-  if (p && p.positions && p.positions.length) $("#port").innerHTML = `<table><tr><th>#</th><th>Ticker</th><th>In</th><th>Now</th><th>P&amp;L</th></tr>${p.positions.map(x=>`<tr><td>${x.id}</td><td>${esc(x.ticker)}</td><td>${x.entry_price.toFixed(2)}</td><td>${x.price_now?x.price_now.toFixed(2):"–"}</td><td>${pct(x.pnl_pct)}</td></tr>`).join("")}</table>`;
 }
-
-if (!STATIC){
-  $("#conv").onsubmit = async ev => {
-    ev.preventDefault(); const f = new FormData(ev.target); $("#go").disabled = true;
-    const body = Object.fromEntries(f); body.include_claude = f.has("include_claude");
-    const r = await (await fetch("/api/convene", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)})).json();
-    $("#go").disabled = false;
-    if (r.error) { alert(r.error); return; }
-    current = null; await refresh(); open(r.session);
-  };
-  $("#chat").onsubmit = async ev => {
-    ev.preventDefault(); const t = ev.target.text.value.trim(); if (!t) return;
-    await fetch("/api/say", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({text:t, session: current})});
-    ev.target.text.value = "";
-  };
-  $("#chat textarea").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#chat").requestSubmit(); } });
-}
-async function phoneBox(){
-  if (STATIC || !["127.0.0.1","localhost"].includes(location.hostname)) return;
-  const r = await get("/api/phone"); if (!r || !r.url) return;
-  $("#phonebox").style.display = ""; $("#phonelink").href = r.url; $("#phonelink").textContent = r.url;
-  if (window.QRCode && $("#qr").dataset.url !== r.url) { $("#qr").innerHTML = ""; new QRCode($("#qr"), {text: r.url, width: 150, height: 150}); $("#qr").dataset.url = r.url; }
-}
-if (!STATIC) {
-  $("#reveal").onclick = async () => { const r = await get("/api/phone?reveal=1"); $("#pw").textContent = r && r.password ? r.password : "unavailable"; };
-  phoneBox(); setInterval(phoneBox, 30000);
-}
-setInterval(() => { $("#clock").textContent = new Date().toLocaleString("en-US",{timeZone:"America/New_York",hour:"2-digit",minute:"2-digit",weekday:"short"}) + " ET · " + new Date().toLocaleString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit"}) + " IST"; }, 1000);
-refresh(); side(); setInterval(refresh, STATIC ? 60000 : 5000); setInterval(side, 60000);
+load(); setInterval(load, 120000);
 </script>
 </body>
 </html>
