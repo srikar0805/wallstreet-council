@@ -84,6 +84,11 @@ a{color:var(--accent)}
   <div class="chips" id="chips"></div>
   <div class="card" id="stock"><span class="muted">Pick a stock above.</span></div>
 
+  <section id="gov-wrap" style="display:none">
+  <h2>What politicians are buying</h2>
+  <div class="card" id="gov"></div>
+  </section>
+
   <h2>What the robots are talking about</h2>
   <div class="card talk" id="talk"><span class="muted">Nothing yet today.</span></div>
 
@@ -189,6 +194,30 @@ async function load(){
   });
   $("#s-ai").textContent = ai; $("#s-mkt").textContent = mk;
   $("#s-note").textContent = `${playing} match${playing === 1 ? "" : "es"} still being played. Each pick is a little match against simply buying the whole market, and needs at least a week.`;
+
+  const gov = await get("data/congress.json");
+  if (gov && (gov.recent || []).length) {
+    const o = gov.overall, who = r => {
+      const p = r.party ? ` (${String(r.party)[0]}, ${esc((r.state_district || "").slice(0, 2))})` : "";
+      return esc(r.filer) + p + (r.owner && r.owner !== "self" ? `'s ${esc(r.owner)}` : "");
+    };
+    const day = d => new Date(d + "T12:00:00").toLocaleDateString([], {month: "short", day: "numeric"});
+    const verdict = o ? (o.avg_excess_pct > 0
+      ? `Copying them <b class="up">beat</b> the market, on average by ${pct(o.avg_excess_pct)} per trade.`
+      : `Copying them <b class="down">did worse</b> than just buying the market, on average by ${pct(o.avg_excess_pct)} per trade.`) : "";
+    $("#gov").innerHTML = `
+      ${o ? `<div class="callout" style="margin-top:0">If you had copied every stock a member of Congress bought, starting the day it became public:
+        <b>${pct(o.avg_copy_return_pct)}</b> on average, while the whole market gave <b>${pct(o.avg_sp500_pct)}</b>. ${verdict}
+        <span class="muted" style="font-size:14px;display:block;margin-top:4px">${o.trades.toLocaleString()} purchases held at least a month, since 2024. Copying beat the market ${o.beat_market_pct}% of the time.</span></div>` : ""}
+      ${(gov.hot || []).length ? `<h3 style="font-size:17px;margin:14px 0 6px">Most popular with politicians lately</h3>
+        <div class="chips">${gov.hot.slice(0, 6).map(h => `<span class="chip" style="cursor:default">${esc(h.ticker)} · ${h.members} member${h.members === 1 ? "" : "s"}</span>`).join("")}</div>` : ""}
+      <h3 style="font-size:17px;margin:14px 0 6px">Latest purchases they told the public about</h3>
+      ${gov.recent.filter(r => r.ticker).slice(0, 6).map(r => `<div class="item" style="margin:0 0 12px;font-size:16px">
+        <b>${who(r)}</b> bought <b>${esc(r.ticker)}</b><br>
+        <span class="muted" style="font-size:14px">bought ${day(r.tx_date)}, told the public ${day(r.filed_date)} · since then ${pct(r.copy_return_pct)} (market ${pct(r.sp500_pct)})</span></div>`).join("")}
+      <p class="muted" style="font-size:14px;margin:6px 0 0">Members of Congress have up to 45 days to report a trade. We count from the day after they report it, because that is the first day anyone could copy them. Source: official House filings.</p>`;
+    $("#gov-wrap").style.display = "";
+  }
 
   if (plain && plain.summary) $("#talk").innerHTML = `${esc(plain.summary)}<p class="muted" style="font-size:14px;margin:8px 0 0">Summed up ${ago(plain.ts)}.</p>`;
 }
