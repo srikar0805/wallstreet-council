@@ -104,7 +104,8 @@ def build(out: Path = SITE) -> dict:
         sc = congress.scorecard()
         (out / "data" / "congress.json").write_text(json.dumps({
             "overall": sc.get("overall"), "recent": sc.get("recent", [])[:15], "hot": congress.hot_tickers()[:8],
-            "best": sc.get("filers", [])[:5], "worst": sc.get("filers", [])[-5:][::-1], "as_of": sc.get("as_of")},
+            "best": sc.get("filers", [])[:5], "worst": sc.get("filers", [])[-5:][::-1], "as_of": sc.get("as_of"),
+            "fair_test": congress.fair_test()},
             default=str))
     except Exception:  # noqa: BLE001  the page simply hides the section
         pass

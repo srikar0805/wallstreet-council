@@ -41,7 +41,13 @@ The number other trackers skip: members have up to 45 days to disclose, so every
 first close **after** its filing date, the first day anyone could copy it, against the S&P 500 over the same span.
 On the 2024 to 2026 data (5,466 purchases held at least a month), copying returned +25.7% on average against
 +26.7% for the S&P 500, beat the market 35% of the time, and the disclosure delay cost about 4.4 points per trade
-versus buying on the trade date. The councils see this record and the most-bought tickers; the public page shows
+versus buying on the trade date.
+
+**The fair test.** Picking "the best politicians to copy" after the fact is hindsight. `congress.fair_test()` walks
+forward instead: every six months it ranks members only by how their copied buys had done up to that day, follows
+the top five for the next six months, and compares them with the bottom five and with copying everyone. A unit test
+checks it cannot see future prices. So far, past winners beat the market in 2 of 3 finished half-years and past
+losers lost in 3 of 3: too few rounds to trust either way. The councils see this record and the most-bought tickers; the public page shows
 it in plain words.
 
 ```bash

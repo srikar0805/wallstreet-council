@@ -123,3 +123,25 @@ def test_parse_electronic_ptr():
     assert rows[0]["amount_min"] == 500001 and rows[0]["amount_max"] == 1000000
     assert rows[1]["tx_date"] == "2025-12-12" and rows[1]["notified_date"] == "2026-01-07"
     assert rows[0]["asset"] == "Alphabet Inc. - Class A Common Stock"
+
+
+def test_fair_test_has_no_lookahead(monkeypatch):
+    """A's stock soars before the selection date and crashes after; B's is flat throughout.
+    Ranking must use only pre-selection prices, so A is followed (and then loses)."""
+    import pandas as pd
+    from wallstreet_council import congress
+    days = pd.bdate_range("2024-01-01", "2025-06-30")
+    up_then_down = [100 + i if d < pd.Timestamp("2025-01-01") else 400 - i for i, d in enumerate(days)]
+    px = pd.DataFrame({"AAA": up_then_down, "BBB": [100.0] * len(days), "SPY": [100.0] * len(days)}, index=days)
+    monkeypatch.setattr(congress, "_prices", lambda tickers, start: px)
+    with congress._conn() as c:
+        c.execute("DELETE FROM gov_trades")
+        for filer, tk in (("A", "AAA"), ("B", "BBB")):
+            for d in ("2024-01-02", "2025-02-03"):
+                c.execute("INSERT INTO gov_trades (filer, ticker, tx_type, asset_type, filed_date) VALUES (?,?,?,?,?)",
+                          (filer, tk, "buy", "ST", d))
+    r = congress.fair_test(top_n=1, min_trades=1)
+    first = r["periods"][0]
+    assert first["start"] == "2025-01-01"
+    assert [f["filer"] for f in first["followed"]] == ["A"]   # chosen on pre-2025 prices only
+    assert first["top"]["avg_excess_pct"] < 0                # and the later crash is what the test reports

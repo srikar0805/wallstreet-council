@@ -220,6 +220,18 @@ async function load(){
         <b>${who(r)}</b> bought <b>${esc(r.ticker)}</b><br>
         <span class="muted" style="font-size:14px">bought ${day(r.tx_date)}, told the public ${day(r.filed_date)} · ${r.days_held >= 3
           ? `since then ${pct(r.copy_return_pct)} (market ${pct(r.sp500_pct)})` : "too new to judge"}</span></div>`).join("")}
+      ${(() => {
+        const ft = gov.fair_test; if (!ft || !(ft.periods || []).length) return "";
+        const half = d => { const x = new Date(d + "T12:00:00"); return (x.getMonth() < 6 ? "Jan to Jun " : "Jul to Dec ") + x.getFullYear(); };
+        const done = ft.periods.filter(p => !p.ongoing && p.top);
+        const wins = done.filter(p => p.top.avg_excess_pct > 0).length, lossesBad = done.filter(p => p.bottom && p.bottom.avg_excess_pct < 0).length;
+        const mark = x => x == null ? "" : x > 0 ? `<b class="up">beat the market by ${x.toFixed(1)}%</b>` : `<b class="down">lost to the market by ${Math.abs(x).toFixed(1)}%</b>`;
+        return `<h3 style="font-size:17px;margin:18px 0 6px">🧪 Fair test: can you pick the right politicians to copy?</h3>
+          <p style="font-size:16px;margin:0 0 8px">Every 6 months we chose the 5 members whose copied buys had done best <i>so far</i>, using only what was known on that day, then copied only them for the next 6 months. Like picking last season's top scorers before the new season starts.</p>
+          <div class="callout">Following the past winners beat the market in <b>${wins} of ${done.length}</b> half-years. Copying the past <i>losers</i> lost to the market in <b>${lossesBad} of ${done.length}</b>. ${done.length < 6 ? "That is too few rounds to trust either way yet." : ""}</div>
+          ${ft.periods.map(p => `<div class="item" style="margin:0 0 10px;font-size:16px"><b>${half(p.start)}</b>${p.ongoing ? " <span class='muted'>(still running)</span>" : ""}: followed ${p.followed.map(f => esc(f.filer)).join(", ")}<br>
+            <span style="font-size:15px">${p.top ? `their ${p.top.trades} buys ${mark(p.top.avg_excess_pct)}` : "no buys"}${p.bottom ? `; the past losers ${mark(p.bottom.avg_excess_pct)}` : ""}</span></div>`).join("")}`;
+      })()}
       <p class="muted" style="font-size:14px;margin:6px 0 0">Members of Congress have up to 45 days to report a trade. We count from the day after they report it, because that is the first day anyone could copy them. Source: official House filings.</p>`;
     $("#gov-wrap").style.display = "";
   }

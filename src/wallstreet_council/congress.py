@@ -403,8 +403,105 @@ def hot_tickers(days: int = 45) -> list[dict]:
 def brief_block() -> dict:
     """What the council sees: recent political buying and the honest copy record."""
     sc = scorecard()
+    ft = fair_test()
+    finished = [p for p in ft.get("periods", []) if not p["ongoing"] and p["top"]]
     return {"note": "US House members' disclosed trades. Disclosure comes up to 45 days after the trade; 'copy' returns "
                     "start the day after disclosure, which is when anyone could act.",
+            "fair_test": {"rule": ft.get("rule"), "past_winners_beat_market_in": f"{sum(p['top']['avg_excess_pct'] > 0 for p in finished)} of {len(finished)} half-years",
+                          "past_losers_beat_market_in": f"{sum((p['bottom'] or {}).get('avg_excess_pct', 0) > 0 for p in finished)} of {len(finished)} half-years",
+                          "followed_now": [f["filer"] for f in (ft.get("periods") or [{}])[-1].get("followed", [])]},
             "hot_tickers_45d": hot_tickers(), "copying_record": sc.get("overall"),
             "recent_buys": [{k: r[k] for k in ("filer", "party", "ticker", "tx_date", "filed_date", "amount_min",
                                                "copy_return_pct", "sp500_pct")} for r in sc.get("recent", [])[:12]]}
+
+
+# ---- the fair test: choose whom to follow using only what was known at the time -----------------------------
+def fair_test(top_n: int = 5, lookback_days: int = 365, hold_days: int = 182, min_trades: int = 10) -> dict:
+    """Walk forward in half-years. At each start date, rank members by the excess return of their copied purchases
+    in the previous `lookback_days`, measured only up to that start date (no later prices). Then copy the top
+    `top_n` (and, as controls, the bottom `top_n` and everyone) for the next half-year, each purchase held
+    `hold_days` from the first close after disclosure, against the S&P 500 over the same days."""
+    import pandas as pd
+    with _conn() as c:
+        buys = [dict(r) for r in c.execute(
+            "SELECT filer, party, ticker, filed_date FROM gov_trades WHERE tx_type='buy' AND ticker IS NOT NULL "
+            "AND (asset_type='ST' OR asset_type IS NULL OR asset_type='EF') AND filed_date IS NOT NULL")]
+    if not buys:
+        return {}
+    first = min(b["filed_date"] for b in buys)
+    px = _prices([b["ticker"] for b in buys] + ["SPY"], first)
+    spy = px["SPY"].dropna()
+    today = px.index[-1]
+
+    def held(b, until: pd.Timestamp) -> dict | None:
+        """Copy return from the first close after disclosure, to `until` or the end of the hold, whichever first."""
+        if b["ticker"] not in px.columns:
+            return None
+        s = px[b["ticker"]].dropna()
+        after = s[s.index > pd.Timestamp(b["filed_date"])]
+        if after.empty:
+            return None
+        d0 = after.index[0]
+        d1 = min(until, d0 + pd.Timedelta(days=hold_days), today)
+        s_in, b_in = s[(s.index >= d0) & (s.index <= d1)], spy[(spy.index >= d0) & (spy.index <= d1)]
+        if len(s_in) < 2 or len(b_in) < 2:
+            return None
+        r = (float(s_in.iloc[-1]) / float(s_in.iloc[0]) - 1) * 100
+        m = (float(b_in.iloc[-1]) / float(b_in.iloc[0]) - 1) * 100
+        return {"ret": r, "spy": m, "excess": r - m, "complete": d1 >= d0 + pd.Timedelta(days=hold_days - 3)}
+
+    def agg(rows: list[dict]) -> dict | None:
+        if not rows:
+            return None
+        n = len(rows)
+        return {"trades": n, "avg_return_pct": round(sum(r["ret"] for r in rows) / n, 2),
+                "avg_sp500_pct": round(sum(r["spy"] for r in rows) / n, 2),
+                "avg_excess_pct": round(sum(r["excess"] for r in rows) / n, 2),
+                "beat_market_pct": round(100 * sum(r["excess"] > 0 for r in rows) / n, 0)}
+
+    starts = []
+    d = pd.Timestamp(first) + pd.Timedelta(days=lookback_days)
+    d = pd.Timestamp(year=d.year + (d.month > 7), month=7 if 1 < d.month <= 7 else 1, day=1)
+    while d < today:
+        starts.append(d)
+        d = d + pd.DateOffset(months=6)
+
+    periods, pooled = [], {"top": [], "bottom": [], "everyone": []}
+    for start in starts:
+        end = start + pd.DateOffset(months=6)
+        look = [b for b in buys if start - pd.Timedelta(days=lookback_days) <= pd.Timestamp(b["filed_date"]) < start]
+        scores: dict[str, list[float]] = {}
+        for b in look:
+            h = held(b, start - pd.Timedelta(days=1))  # graded only with prices known before the start date
+            if h:
+                scores.setdefault(b["filer"], []).append(h["excess"])
+        ranked = sorted(((sum(v) / len(v), f, len(v)) for f, v in scores.items() if len(v) >= min_trades), reverse=True)
+        if len(ranked) < 2 * top_n:
+            continue
+        top = [f for _, f, _ in ranked[:top_n]]
+        bottom = [f for _, f, _ in ranked[-top_n:]]
+        window = [b for b in buys if start <= pd.Timestamp(b["filed_date"]) < end]
+        res = {"top": [], "bottom": [], "everyone": []}
+        for b in window:
+            h = held(b, today)
+            if not h:
+                continue
+            res["everyone"].append(h)
+            if b["filer"] in top:
+                res["top"].append(h)
+            if b["filer"] in bottom:
+                res["bottom"].append(h)
+        for k in res:
+            pooled[k] += res[k]
+        periods.append({"start": str(start.date()), "end": str(min(end, today).date()),
+                        "ongoing": bool(end > today),
+                        "followed": [{"filer": f, "past_excess_pct": round(s, 1), "past_trades": n}
+                                     for s, f, n in ranked[:top_n]],
+                        "avoided": [{"filer": f, "past_excess_pct": round(s, 1), "past_trades": n}
+                                    for s, f, n in ranked[-top_n:]],
+                        "top": agg(res["top"]), "bottom": agg(res["bottom"]), "everyone": agg(res["everyone"])})
+    return {"rule": f"Every 6 months, follow the {top_n} members whose copied buys beat the S&P 500 most over the "
+                    f"previous {lookback_days // 30} months (at least {min_trades} buys, graded only with prices known "
+                    f"then); copy their new buys the day after disclosure and hold each {hold_days // 30} months.",
+            "periods": periods, "top": agg(pooled["top"]), "bottom": agg(pooled["bottom"]),
+            "everyone": agg(pooled["everyone"]), "as_of": str(today.date())}
