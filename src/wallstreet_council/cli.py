@@ -59,6 +59,9 @@ def main(argv: list[str] | None = None) -> None:
     db.add_argument("--rounds", type=int, default=1)
     sy = sub.add_parser("say")
     sy.add_argument("text")
+    cg = sub.add_parser("congress", help="House members' disclosed trades")
+    cg.add_argument("action", choices=["sync", "stats", "hot"])
+    cg.add_argument("--years", default="", help="e.g. 2024,2025 (default: 2024 to now)")
     for name in ("track", "grade", "reflect", "publish", "uninstall-service"):
         sub.add_parser(name)
     isv = sub.add_parser("install-service", help="run floor + monitor under launchd (macOS)")
@@ -148,6 +151,17 @@ def main(argv: list[str] | None = None) -> None:
     elif a.cmd == "tunnel":
         from . import phone
         phone.run_tunnel()
+    elif a.cmd == "congress":
+        from . import congress
+        if a.action == "sync":
+            years = [int(y) for y in a.years.split(",") if y.strip()] or None
+            print(congress.sync(years=years))
+        elif a.action == "hot":
+            print(json.dumps(congress.hot_tickers(), indent=2))
+        else:
+            sc = congress.scorecard()
+            print(json.dumps({k: sc.get(k) for k in ("overall", "all_including_recent", "as_of")}, indent=2))
+            print("best copied filers:", json.dumps(sc.get("filers", [])[:5], indent=1))
     elif a.cmd == "publish":
         from . import publish
         print(publish.publish())

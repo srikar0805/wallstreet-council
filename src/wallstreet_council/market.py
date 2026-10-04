@@ -263,8 +263,16 @@ def build_brief(extra: list[str] | None = None, progress=None, code: str = "US",
     sports = {q: [h for h in hs if any(k in h["title"].lower() for k in keys if len(k) > 2)]
               for q, hs in sports.items()}
     sports = {q: hs for q, hs in sports.items() if hs}
-    return {"clock": market_clock(code), "regime": regime, "sectors": sectors,
-            "macro_news": macro, "sports_news": sports, "candidates": cands}
+    out = {"clock": market_clock(code), "regime": regime, "sectors": sectors,
+           "macro_news": macro, "sports_news": sports, "candidates": cands}
+    if code == "US":
+        try:  # what members of Congress disclosed buying, and whether copying them has paid
+            from . import congress
+            say("Checking what members of Congress disclosed buying in the last 45 days")
+            out["politicians"] = congress.brief_block()
+        except Exception:  # noqa: BLE001
+            pass
+    return out
 
 
 def compact(brief: dict, only: set[str] | None = None, news: bool = True) -> str:
@@ -276,7 +284,7 @@ def compact(brief: dict, only: set[str] | None = None, news: bool = True) -> str
         lines.append("REGIME " + json.dumps(brief["regime"]))
     if brief.get("sectors"):
         lines.append("SECTORS " + json.dumps(brief["sectors"]))
-    for key in ("costs", "ipos", "dossiers"):
+    for key in ("costs", "ipos", "dossiers", "politicians"):
         if brief.get(key):
             lines.append(key.upper() + " " + json.dumps(brief[key], default=str))
     if news:

@@ -30,6 +30,29 @@ against just buying the index. Every feature is kept only if it serves that.
 buy a lot), a spotlight over unaffordable stocks, a general sports news feed, the Claude seat, options or
 leverage tooling, real-money order placement before a long track record, and charts for every stock.
 
+## What Congress buys, and whether copying them pays
+
+`congress.py` reads every Periodic Transaction Report filed with the House Clerk since 2024: the yearly XML
+index is free, electronic reports are parsed deterministically from the PDF table (zero failures on 1,203
+filings), and scanned paper reports are read by Gemini and marked as AI-read. Parties come from the public-domain
+congress-legislators dataset.
+
+The number other trackers skip: members have up to 45 days to disclose, so every purchase is scored from the
+first close **after** its filing date, the first day anyone could copy it, against the S&P 500 over the same span.
+On the 2024 to 2026 data (5,466 purchases held at least a month), copying returned +25.7% on average against
++26.7% for the S&P 500, beat the market 35% of the time, and the disclosure delay cost about 4.4 points per trade
+versus buying on the trade date. The councils see this record and the most-bought tickers; the public page shows
+it in plain words.
+
+```bash
+uv run council congress sync     # fetch and parse new filings (the floor also does this each evening)
+uv run council congress stats    # the copy-on-disclosure scorecard
+uv run council congress hot      # tickers the most members traded in the last 45 days
+```
+
+These reports may not be used for commercial purposes other than by news media (5 U.S.C. 13107), so the
+tracker stays free and non-commercial. Next: the Senate, executive-branch officials, and Indian insider trades.
+
 ## What it covers
 
 - **Markets**: US (NYSE, Nasdaq) and India (NSE, BSE): indices, VIX and India VIX, yields, USD/INR,

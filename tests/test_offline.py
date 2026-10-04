@@ -91,3 +91,35 @@ def test_phone_gateway_requires_login(monkeypatch):
     for _ in range(5):
         c.post("/login", data={"password": "wrong"})
     assert c.post("/login", data={"password": "wrong"}).status_code == 429
+
+
+PTR_SAMPLE = """ID Owner Asset Transaction
+Type
+Date Notification
+Date
+Amount Cap.
+Gains >
+$200?
+SP Alphabet Inc. - Class A Common
+Stock (GOOGL) [ST]
+P 01/16/2026 01/16/2026 $500,001 -
+$1,000,000
+F      S     : New
+D          : Exercised 50 call options purchased 1/14/25 (5,000 shares) at a strike price of $150.
+JT Cheniere Energy, Inc. Common Stock
+(LNG) [ST]
+S 12/12/2025 01/07/2026 $1,001 - $15,000
+F      S     : New
+S          O : Morgan Stanley - Select UMA Account # 1
+AT&T Inc. (T) [ST] S (partial) 03/16/2026 03/16/2026 $1,001 - $15,000
+"""
+
+
+def test_parse_electronic_ptr():
+    from wallstreet_council.congress import parse_electronic
+    rows = parse_electronic(PTR_SAMPLE)
+    assert [(r["owner"], r["ticker"], r["tx_type"]) for r in rows] == [
+        ("spouse", "GOOGL", "buy"), ("joint", "LNG", "sell"), ("self", "T", "partial sell")]
+    assert rows[0]["amount_min"] == 500001 and rows[0]["amount_max"] == 1000000
+    assert rows[1]["tx_date"] == "2025-12-12" and rows[1]["notified_date"] == "2026-01-07"
+    assert rows[0]["asset"] == "Alphabet Inc. - Class A Common Stock"

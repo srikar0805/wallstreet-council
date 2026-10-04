@@ -99,6 +99,15 @@ def build(out: Path = SITE) -> dict:
         (out / "data" / "plain.json").write_text(json.dumps(plain))
     picks = picks_of_the_day(sessions)
     (out / "data" / "picks.json").write_text(json.dumps(picks, default=str))
+    try:
+        from . import congress
+        sc = congress.scorecard()
+        (out / "data" / "congress.json").write_text(json.dumps({
+            "overall": sc.get("overall"), "recent": sc.get("recent", [])[:15], "hot": congress.hot_tickers()[:8],
+            "best": sc.get("filers", [])[:5], "worst": sc.get("filers", [])[-5:][::-1], "as_of": sc.get("as_of")},
+            default=str))
+    except Exception:  # noqa: BLE001  the page simply hides the section
+        pass
     # Stock cards for the picks and watchlist only, built in parallel and cached for two hours.
     from concurrent.futures import ThreadPoolExecutor
     from . import stockcard

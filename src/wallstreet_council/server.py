@@ -160,6 +160,16 @@ def live_status() -> dict[str, Any]:
                         for p in ("codex", "claude", "copilot")}}
 
 
+@mcp.tool(annotations=READ_ONLY, structured_output=True)
+def politician_trades(days: int = 45) -> dict[str, Any]:
+    """US House members' disclosed stock trades: the most-traded tickers in the last `days`, the latest buys, and the
+    honest record of copying them from the day after disclosure against the S&P 500."""
+    from . import congress
+    sc = congress.scorecard()
+    return {"hot_tickers": congress.hot_tickers(days), "copying_record": sc.get("overall"),
+            "best_filers_to_copy": sc.get("filers", [])[:10], "recent_buys": sc.get("recent", [])[:20]}
+
+
 def main() -> None:
     _monitor()
     mcp.run()

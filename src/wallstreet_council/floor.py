@@ -314,6 +314,16 @@ class Floor:
                                     data={"lessons": new})
             except Exception as ex:  # noqa: BLE001
                 store.add_event(self.ensure_session(), "floor", "Moderator", "error", f"reflection failed: {ex}")
+        if day != getattr(self, "last_congress_day", "") and datetime.now(market.ET).hour >= 18:
+            self.last_congress_day = day
+            try:  # the Clerk posts new filings during the day; read them once each evening
+                from . import congress
+                r = congress.sync(years=[datetime.now(market.ET).year], max_scanned=20, progress=lambda m: None)
+                if r["trades"]:
+                    store.add_event(self.ensure_session(), "floor", "Research desk", "brief",
+                                    f"New Congress disclosures: {r['filings']} filings, {r['trades']} trades.")
+            except Exception as ex:  # noqa: BLE001
+                store.add_event(self.ensure_session(), "floor", "Moderator", "error", f"congress sync failed: {ex}")
         if self.publish and now - self.last_publish > 900:
             self.last_publish = now
             try:
